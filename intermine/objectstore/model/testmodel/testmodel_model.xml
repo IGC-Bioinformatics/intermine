@@ -101,4 +101,34 @@
         <attribute name="name" type="java.lang.String"/>
         <reference name="parent" referenced-type="Company"/>
     </class>
+
+    <!-- Textual additions -->
+    <class name="Author" is-interface="false" extends="Employable">
+        <collection name="works" referenced-type="TextualWork" reverse-reference="author"/>
+    </class>
+    <class name="TextualWork" is-interface="false">
+        <attribute name="title" type="java.lang.String"/>
+        <reference name="author" referenced-type="Author" reverse-reference="works"/>
+        <reference name="text" referenced-type="Text"/>
+    </class>
+    <class name="Text" is-interface="false">
+        <attribute name="length" type="int"/>
+        <attribute name="text" type="org.intermine.objectstore.query.ClobAccess"/>
+    </class>
+    <class name="TextLocation" is-interface="false">
+        <attribute name="offset" type="int"/>
+        <reference name="work" type="TextualWork"/>
+        <reference name="text" type="Text"/>
+    </class>
+    <class name="PartOfSpeech" is-interface="false">
+        <attribute name="acronym" type="java.lang.String"/>
+        <attribute name="description" type="java.lang.String"/>
+    </class>
+    <class name="TextAnnotation" is-interface="false">
+        <reference name="location" type="TextLocation"/>
+    </class>
+    <class name="GrammaticalAnnotation" is-interface="false" extends="TextAnnotation">
+        <reference name="partOfSpeech" referenced-type="PartOfSpeech"/>
+    </class>
+
 </model>
