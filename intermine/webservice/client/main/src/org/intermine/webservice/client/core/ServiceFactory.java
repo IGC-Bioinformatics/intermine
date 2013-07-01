@@ -110,6 +110,10 @@ public class ServiceFactory
         }
         s.setFactory(this);
     }
+    
+    public String getRootUrl() {
+    	return this.rootUrl;
+    }
 
     // Variables for caching services. There is never going to be a need to create more
     // than one for any ServiceFactory.
