@@ -273,9 +273,16 @@ public class ObjectStoreInterMineImpl extends ObjectStoreAbstractImpl implements
         T retval;
         try {
             con = getConnection();
+            con.setAutoCommit(false);
             stm = con.prepareStatement(sql);
             retval = operation.run(stm);
+            con.commit();
             return retval;
+        } catch (SQLException e) {
+            if (con != null) {
+                con.rollback();
+            }
+            throw e;
         } finally {
             if (stm != null) {
                 stm.close();
