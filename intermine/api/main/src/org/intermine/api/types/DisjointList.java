@@ -1,11 +1,11 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 import java.util.ArrayList;
 
-import org.intermine.webservice.server.core.Either.Left;
-import org.intermine.webservice.server.core.Either.Right;
+import org.intermine.api.types.Either.Left;
+import org.intermine.api.types.Either.Right;
 
-class DisjointList<L, R> extends ArrayList<Either<L, R>> {
+public class DisjointList<L, R> extends ArrayList<Either<L, R>> {
     public boolean addLeft(L lefty) {
         super.add(new Left<L, R>(lefty));
         return true;

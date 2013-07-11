@@ -16,6 +16,8 @@ import org.apache.commons.collections.Transformer;
 import org.apache.commons.collections.functors.StringValueTransformer;
 import org.apache.log4j.Logger;
 import org.intermine.api.query.MainHelper;
+import org.intermine.api.types.Either;
+import org.intermine.api.types.EitherVisitor;
 import org.intermine.metadata.Model;
 import org.intermine.model.testmodel.Address;
 import org.intermine.model.testmodel.Company;

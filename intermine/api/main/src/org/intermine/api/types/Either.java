@@ -1,4 +1,4 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 /**
  * <h2> Disjoint type union </h2>

@@ -1,21 +1,26 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
-class DisjointRecursiveList<T> {
+import org.intermine.pathquery.Path;
+
+public class DisjointRecursiveList<T> {
+
     List<Either<T, DisjointRecursiveList<T>>> items;
 
-    DisjointRecursiveList() {
+    public DisjointRecursiveList() {
         items = new ArrayList<Either<T, DisjointRecursiveList<T>>>();
     }
 
-    void addList(DisjointRecursiveList<T> subs) {
+    public void addList(DisjointRecursiveList<T> subs) {
         items.add(new Either.Right<T, DisjointRecursiveList<T>>(subs));
     }
 
-    void addNode(T node) {
+    public void addNode(T node) {
         items.add(new Either.Left<T, DisjointRecursiveList<T>>(node));
     }
 
@@ -40,6 +45,14 @@ class DisjointRecursiveList<T> {
             
         });
         return flattened;
+    }
+
+    public void sort(Comparator<Either<T, DisjointRecursiveList<T>>> pathReorderer) {
+        Collections.sort(items, pathReorderer);
+    }
+
+    public boolean isEmpty() {
+        return items.isEmpty();
     }
 
     /**
@@ -68,7 +81,7 @@ class DisjointRecursiveList<T> {
         return retVal;
     }
     
-    void forEach(EitherVisitor<T, DisjointRecursiveList<T>, Void> visitor) {
+    public void forEach(EitherVisitor<T, DisjointRecursiveList<T>, Void> visitor) {
         for (Either<T, DisjointRecursiveList<T>> item: items) {
             item.accept(visitor);
         }

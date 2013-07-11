@@ -1,6 +1,8 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 import java.util.Map.Entry;
+
+import org.apache.commons.lang.builder.HashCodeBuilder;
 
 /**
  * A tuple of order two.
@@ -44,6 +46,24 @@ public final class Pair<A, B> implements Entry<A, B>
     
     @Override
     public String toString() {
-    	return String.format("org.intermine.webservice.core.Pair(%s => %s)", a, b);
+        return String.format("org.intermine.webservice.core.Pair(%s => %s)", a, b);
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(13, 27).append(a).append(b).toHashCode();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == null) return false;
+        if (other == this) return true;
+
+        if (other instanceof Entry<?, ?>){
+            Entry<?,?> otherEntry = (Entry<?,?>) other;
+            return (a == null ? otherEntry.getKey() == null : a.equals(otherEntry.getKey()))
+                    && (b == null ? otherEntry.getValue() == null : b.equals(otherEntry));
+        }
+        return false;
     }
 }

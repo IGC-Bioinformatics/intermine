@@ -1,4 +1,4 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 public abstract class F<A, B>
 {

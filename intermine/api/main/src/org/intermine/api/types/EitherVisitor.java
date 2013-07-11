@@ -1,4 +1,4 @@
-package org.intermine.webservice.server.core;
+package org.intermine.api.types;
 
 public abstract class EitherVisitor<A, B, T>
 {

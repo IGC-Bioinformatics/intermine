@@ -13,6 +13,12 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.intermine.api.InterMineAPI;
+import org.intermine.api.types.DisjointList;
+import org.intermine.api.types.DisjointRecursiveList;
+import org.intermine.api.types.Either;
+import org.intermine.api.types.EitherVisitor;
+import org.intermine.api.types.TreeWalker;
+import org.intermine.api.types.DisjointRecursiveList.Eacher;
 import org.intermine.metadata.FieldDescriptor;
 import org.intermine.model.FastPathObject;
 import org.intermine.objectstore.query.PathExpressionField;
@@ -27,7 +33,6 @@ import org.intermine.pathquery.PathQuery;
 import org.intermine.util.DynamicUtil;
 import org.intermine.util.TypeUtil;
 import org.intermine.webservice.server.exceptions.NotImplementedException;
-import org.intermine.webservice.server.core.DisjointRecursiveList.Eacher;
 
 /**
  * A class for iterating over rows of results returned from the object store in a way that is very
@@ -260,7 +265,7 @@ public class TableRowIterator implements
                 return null;
             }
         });
-        Collections.sort(consolidated.items, pathReorderer);
+        consolidated.sort(pathReorderer);
     }
 
     /**
@@ -326,7 +331,7 @@ public class TableRowIterator implements
         ) {
         final Set<Path> pathsAtThisLevel = new HashSet<Path>();
         final List<Path> pathsBelowThisLevel = new ArrayList<Path>();
-        if (shape.items.isEmpty()) {
+        if (shape.isEmpty()) {
             // Should totally never happen...
             return null;
         }

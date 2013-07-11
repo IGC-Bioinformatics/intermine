@@ -3,6 +3,7 @@ package org.intermine.webservice.server.core;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.intermine.api.types.Either;
 import org.intermine.pathquery.Path;
 
 public class SubTable
