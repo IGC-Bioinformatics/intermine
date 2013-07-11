@@ -910,7 +910,7 @@ public class InitialiserPlugin implements PlugIn
                 }
             }
         } catch (SQLException sqle) {
-            LOG.error("Probelm retrieving connection", sqle);
+            LOG.error("Problem retrieving connection", sqle);
         } finally {
             ((ObjectStoreInterMineImpl) uos).releaseConnection(con);
         }
