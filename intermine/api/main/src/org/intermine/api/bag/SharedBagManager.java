@@ -656,7 +656,7 @@ public class SharedBagManager
      * @return A collection of profiles.
      */
     public Set<Profile> getGroupMembers(final Group group) {
-    	if (group == null) throw new NullPointerException("group must not be null");
+        if (group == null) throw new NullPointerException("group must not be null");
         final Set<String> memberNames = new HashSet<String>();
         try {
             uosw.performUnsafeOperation(GET_GROUP_MEMBERS_SQL, new SQLOperation<Void>() {
@@ -686,8 +686,8 @@ public class SharedBagManager
         + " WHERE gm.memberid = ? AND gm.groupid= ?";
 
     public boolean isUserInGroup(final Profile user, final Group group) {
-    	if (user == null) throw new NullPointerException("user is null");
-    	if (group == null) throw new NullPointerException("group is null");
+        if (user == null) throw new NullPointerException("user is null");
+        if (group == null) throw new NullPointerException("group is null");
         try {
             return uosw.performUnsafeOperation(IS_USER_IN_GROUP_SQL, new SQLOperation<Boolean>() {
                 @Override
@@ -806,54 +806,53 @@ public class SharedBagManager
     }
     
     private static final String EDIT_GROUP_SQL = "UPDATE " + USERGROUPS
-    		+ " SET %s WHERE id = ?";
+            + " SET %s WHERE id = ?";
     
-    @SafeVarargs
-	public final Group editGroupDetails(final Group group, final Entry<Group.Field, String>... newValues) {
-    	Map<Group.Field, String> valueMap = new HashMap<Group.Field, String>();
-    	for (Entry<Group.Field, String> entry: newValues) {
-    		valueMap.put(entry.getKey(), entry.getValue());
-    	}
-    	return editGroupDetails(group, valueMap);
+    public final Group editGroupDetails(final Group group, final Entry<Group.Field, String>... newValues) {
+        Map<Group.Field, String> valueMap = new HashMap<Group.Field, String>();
+        for (Entry<Group.Field, String> entry: newValues) {
+            valueMap.put(entry.getKey(), entry.getValue());
+        }
+        return editGroupDetails(group, valueMap);
     }
     
     public Group editGroupDetails(final Group group, final Map<Group.Field, String> newValues) {
-    	if (group == null) throw new NullPointerException("group must not be null");
-    	if (newValues == null) throw new NullPointerException("newValues must not be null");
-    	if (newValues.isEmpty()) {
-    		return group; // No change.
-    	}
-    	StringBuilder sb = new StringBuilder();
-    	final List<Group.Field> fields = new ArrayList<Group.Field>(newValues.keySet());
-    	for (Group.Field field: fields) {
-    		if (sb.length() > 0) sb.append(",");
-    		sb.append(" ").append(field).append(" = ?");
-    	}
-    	String sql = String.format(EDIT_GROUP_SQL, sb.toString());
-    	try {
-    		uosw.performUnsafeOperation(sql, new SQLOperation<Void>() {
-    			@Override
-    			public Void run(PreparedStatement stm) throws SQLException {
-    				int paramIdx = 1;
-    				for (Group.Field field: fields) {
-    					stm.setString(paramIdx++, newValues.get(field));
-    				}
-    				stm.setInt(paramIdx, group.getGroupId());
-    				int changed = stm.executeUpdate();
-    				if (changed != 1) {
-    					throw new SQLException("Expected to change one row; affected " + changed);
-    				}
-    				return null;
-    			}
-    		});
-    	} catch (SQLException e) {
-    		throw new RuntimeException("Could not edit group.", e);
-    	}
-    	return getGroup(group.getUUID());
+        if (group == null) throw new NullPointerException("group must not be null");
+        if (newValues == null) throw new NullPointerException("newValues must not be null");
+        if (newValues.isEmpty()) {
+            return group; // No change.
+        }
+        StringBuilder sb = new StringBuilder();
+        final List<Group.Field> fields = new ArrayList<Group.Field>(newValues.keySet());
+        for (Group.Field field: fields) {
+            if (sb.length() > 0) sb.append(",");
+            sb.append(" ").append(field).append(" = ?");
+        }
+        String sql = String.format(EDIT_GROUP_SQL, sb.toString());
+        try {
+            uosw.performUnsafeOperation(sql, new SQLOperation<Void>() {
+                @Override
+                public Void run(PreparedStatement stm) throws SQLException {
+                    int paramIdx = 1;
+                    for (Group.Field field: fields) {
+                        stm.setString(paramIdx++, newValues.get(field));
+                    }
+                    stm.setInt(paramIdx, group.getGroupId());
+                    int changed = stm.executeUpdate();
+                    if (changed != 1) {
+                        throw new SQLException("Expected to change one row; affected " + changed);
+                    }
+                    return null;
+                }
+            });
+        } catch (SQLException e) {
+            throw new RuntimeException("Could not edit group.", e);
+        }
+        return getGroup(group.getUUID());
     }
 
     private static final String STORE_GROUP_SQL = "INSERT INTO " + USERGROUPS
-    		+ " (uuid, name, description, ownerid) VALUES (?, ?, ?, ?)";
+            + " (uuid, name, description, ownerid) VALUES (?, ?, ?, ?)";
 
     public Group createGroup(final Profile owner, final String name, final String description) {
         if (owner == null) {
@@ -889,34 +888,34 @@ public class SharedBagManager
     }
     
     private class ItemDeleter extends SQLOperation<Void> {
-    	private int id;
-		private String sql;
-		private Integer min, max;
+        private int id;
+        private String sql;
+        private Integer min, max;
 
-		ItemDeleter(int id, String sql, Integer min, Integer max) {
-    		this.id = id;
-    		this.sql = sql;
-    		this.min = min;
-    		this.max = max;
-    	}
+        ItemDeleter(int id, String sql, Integer min, Integer max) {
+            this.id = id;
+            this.sql = sql;
+            this.min = min;
+            this.max = max;
+        }
 
-		@Override
-		public Void run(PreparedStatement stm) throws SQLException {
-			stm.setInt(1, id);
+        @Override
+        public Void run(PreparedStatement stm) throws SQLException {
+            stm.setInt(1, id);
             int changed = stm.executeUpdate();
             if (min != null && changed < min) {
-            	error("fewer", changed, min);
+                error("fewer", changed, min);
             }
             if (max != null && changed > max) {
-            	error("more", changed, max);
+                error("more", changed, max);
             }
             return null;
-		}
-		
-		private void error(String comp, int real, int expected) throws SQLException {
-			throw new SQLException(String.format(
-				"Error running [%s], deleted %s rows (%d) than expected (%d)", sql, comp, real, expected));
-		}
+        }
+        
+        private void error(String comp, int real, int expected) throws SQLException {
+            throw new SQLException(String.format(
+                "Error running [%s], deleted %s rows (%d) than expected (%d)", sql, comp, real, expected));
+        }
     }
 
     public void deleteGroup(final Group group) {
@@ -1077,9 +1076,9 @@ public class SharedBagManager
             throw new RuntimeException("Could not share bag with group.", e);
         }
         for (Profile member: getGroupMembers(group)) {
-        	if (member.getUserId() != owner.getUserId()) {
-        		informProfileOfChange(member.getName(), new CreationEvent(bag));
-        	}
+            if (member.getUserId() != owner.getUserId()) {
+                informProfileOfChange(member.getName(), new CreationEvent(bag));
+            }
         }
     }
 
@@ -1114,9 +1113,9 @@ public class SharedBagManager
             throw new RuntimeException("Could not unshare bag with group.", e);
         }
         for (Profile member: getGroupMembers(group)) {
-        	if (member.getUserId() != owner.getUserId()) {
-        		informProfileOfChange(member.getName(), new DeletionEvent(bag));
-        	}
+            if (member.getUserId() != owner.getUserId()) {
+                informProfileOfChange(member.getName(), new DeletionEvent(bag));
+            }
         }
     }
 }
