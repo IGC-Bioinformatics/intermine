@@ -1,11 +1,15 @@
 package org.intermine.api.bag;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.intermine.api.profile.Profile;
 import org.intermine.api.profile.ProfileManager;
+import org.intermine.api.types.ToMap;
 
-public class Group {
+public class Group implements ToMap {
 
 	public enum Field { name, description };
 	
@@ -51,6 +55,18 @@ public class Group {
 
     public String getUUID() {
         return uuid;
+    }
+
+    @Override
+    public Map<String, Object> toMap() {
+        Map<String, Object> retval = new HashMap<String, Object>();
+        retval.put("name", name);
+        retval.put("description", description);
+        retval.put("uuid", uuid);
+        if (pm != null) {
+            retval.put("owner", getOwner().getName());
+        }
+        return retval;
     }
 
     @Override
