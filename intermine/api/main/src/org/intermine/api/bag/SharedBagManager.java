@@ -10,15 +10,20 @@ package org.intermine.api.bag;
  *
  */
 
+import static java.lang.String.format;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -44,8 +49,6 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.objectstore.intermine.ObjectStoreWriterInterMineImpl;
 import org.intermine.objectstore.intermine.SQLOperation;
 import org.intermine.sql.DatabaseUtil;
-
-import static java.lang.String.format;
 
 /**
  * Singleton manager class for shared bags.
@@ -643,22 +646,23 @@ public class SharedBagManager
     }
 
     private static final String GET_GROUP_MEMBERS_SQL =
-        "SELECT u.name AS member"
-        + " FROM userprofile as u, " + USERGROUPS + " AS g, " + GROUP_MEMBERSHIPS + " AS gm"
-        + " WHERE g.name = ? AND g.id = gm.groupid AND g.memberid = u.id";
+        "SELECT u.username AS member"
+        + " FROM userprofile as u, " + GROUP_MEMBERSHIPS + " AS gm"
+        + " WHERE gm.groupid = ? AND gm.memberid = u.id";
 
     /**
      * Return the members of a group.
      * @param groupName The name of the group.
      * @return A collection of profiles.
      */
-    public Set<Profile> getGroupMembers(final String groupName) {
+    public Set<Profile> getGroupMembers(final Group group) {
+    	if (group == null) throw new NullPointerException("group must not be null");
         final Set<String> memberNames = new HashSet<String>();
         try {
             uosw.performUnsafeOperation(GET_GROUP_MEMBERS_SQL, new SQLOperation<Void>() {
                 @Override
                 public Void run(PreparedStatement stm) throws SQLException {
-                    stm.setString(1, groupName);
+                    stm.setInt(1, group.getGroupId());
                     ResultSet rs = stm.executeQuery();
                     while (rs.next()) {
                         String member = rs.getString("member");
@@ -678,16 +682,18 @@ public class SharedBagManager
     }
 
     private static final String IS_USER_IN_GROUP_SQL =
-        "SELECT * FROM " + GROUP_MEMBERSHIPS + " AS gm, " + USERGROUPS + " AS g"
-        + " WHERE gm.memberid = ? AND g.name = ?";
+        "SELECT * FROM " + GROUP_MEMBERSHIPS + " AS gm"
+        + " WHERE gm.memberid = ? AND gm.groupid= ?";
 
-    public boolean isUserInGroup(final Profile user, final String groupName) {
+    public boolean isUserInGroup(final Profile user, final Group group) {
+    	if (user == null) throw new NullPointerException("user is null");
+    	if (group == null) throw new NullPointerException("group is null");
         try {
             return uosw.performUnsafeOperation(IS_USER_IN_GROUP_SQL, new SQLOperation<Boolean>() {
                 @Override
                 public Boolean run(PreparedStatement stm) throws SQLException {
                     stm.setInt(1, user.getUserId());
-                    stm.setString(2, groupName);
+                    stm.setInt(2, group.getGroupId());
                     ResultSet rs = stm.executeQuery();
                     return rs.next();
                 }
@@ -798,8 +804,56 @@ public class SharedBagManager
             throw new RuntimeException("Could not retrieve groups", e);
         }
     }
+    
+    private static final String EDIT_GROUP_SQL = "UPDATE " + USERGROUPS
+    		+ " SET %s WHERE id = ?";
+    
+    @SafeVarargs
+	public final Group editGroupDetails(final Group group, final Entry<Group.Field, String>... newValues) {
+    	Map<Group.Field, String> valueMap = new HashMap<Group.Field, String>();
+    	for (Entry<Group.Field, String> entry: newValues) {
+    		valueMap.put(entry.getKey(), entry.getValue());
+    	}
+    	return editGroupDetails(group, valueMap);
+    }
+    
+    public Group editGroupDetails(final Group group, final Map<Group.Field, String> newValues) {
+    	if (group == null) throw new NullPointerException("group must not be null");
+    	if (newValues == null) throw new NullPointerException("newValues must not be null");
+    	if (newValues.isEmpty()) {
+    		return group; // No change.
+    	}
+    	StringBuilder sb = new StringBuilder();
+    	final List<Group.Field> fields = new ArrayList<Group.Field>(newValues.keySet());
+    	for (Group.Field field: fields) {
+    		if (sb.length() > 0) sb.append(",");
+    		sb.append(" ").append(field).append(" = ?");
+    	}
+    	String sql = String.format(EDIT_GROUP_SQL, sb.toString());
+    	try {
+    		uosw.performUnsafeOperation(sql, new SQLOperation<Void>() {
+    			@Override
+    			public Void run(PreparedStatement stm) throws SQLException {
+    				int paramIdx = 1;
+    				for (Group.Field field: fields) {
+    					stm.setString(paramIdx++, newValues.get(field));
+    				}
+    				stm.setInt(paramIdx, group.getGroupId());
+    				int changed = stm.executeUpdate();
+    				if (changed != 1) {
+    					throw new SQLException("Expected to change one row; affected " + changed);
+    				}
+    				return null;
+    			}
+    		});
+    	} catch (SQLException e) {
+    		throw new RuntimeException("Could not edit group.", e);
+    	}
+    	return getGroup(group.getUUID());
+    }
 
-    private static final String STORE_GROUP_SQL = "INSERT INTO " + USERGROUPS + " (uuid, name, description, ownerid) VALUES(?, ?, ?)";
+    private static final String STORE_GROUP_SQL = "INSERT INTO " + USERGROUPS
+    		+ " (uuid, name, description, ownerid) VALUES (?, ?, ?, ?)";
 
     public Group createGroup(final Profile owner, final String name, final String description) {
         if (owner == null) {
@@ -833,6 +887,37 @@ public class SharedBagManager
         addUserToGroup(g, owner); // Owners are always members of their groups.
         return g;
     }
+    
+    private class ItemDeleter extends SQLOperation<Void> {
+    	private int id;
+		private String sql;
+		private Integer min, max;
+
+		ItemDeleter(int id, String sql, Integer min, Integer max) {
+    		this.id = id;
+    		this.sql = sql;
+    		this.min = min;
+    		this.max = max;
+    	}
+
+		@Override
+		public Void run(PreparedStatement stm) throws SQLException {
+			stm.setInt(1, id);
+            int changed = stm.executeUpdate();
+            if (min != null && changed < min) {
+            	error("fewer", changed, min);
+            }
+            if (max != null && changed > max) {
+            	error("more", changed, max);
+            }
+            return null;
+		}
+		
+		private void error(String comp, int real, int expected) throws SQLException {
+			throw new SQLException(String.format(
+				"Error running [%s], deleted %s rows (%d) than expected (%d)", sql, comp, real, expected));
+		}
+    }
 
     public void deleteGroup(final Group group) {
         SQLOperation<Void> operation = new SQLOperation<Void>() {
@@ -840,25 +925,29 @@ public class SharedBagManager
             public Void run(PreparedStatement stm) throws SQLException {
                 stm.setInt(1, group.getGroupId());
                 int changed = stm.executeUpdate();
-                if (changed != 1) throw new SQLException("Could not delete group record");
+                if (changed != 1) throw new SQLException("Expected a single deletion, but got " + changed);
                 return null;
             }
         };
-        String[] deleteCommands = new String[] {
-                "DELETE FROM " + USERGROUPS + " WHERE id = ?",
-                "DELETE FROM " + GROUP_MEMBERSHIPS + " WHERE groupid = ?",
-                "DELETE FROM " + GROUP_BAGS + " WHERE groupid = ?"
-        };
-        for (String sql: deleteCommands) {
+        Map<String, ItemDeleter> operations = new LinkedHashMap<String, ItemDeleter>();
+        String sql;
+        sql = "DELETE FROM " + USERGROUPS + " WHERE id = ?";
+        operations.put(sql, new ItemDeleter(group.getGroupId(), sql, 1, 1));
+        sql = "DELETE FROM " + GROUP_MEMBERSHIPS + " WHERE groupid = ?";
+        operations.put(sql, new ItemDeleter(group.getGroupId(), sql, 0, null));
+        sql = "DELETE FROM " + GROUP_BAGS + " WHERE groupid = ?";
+        operations.put(sql, new ItemDeleter(group.getGroupId(), sql, 0, null));
+        
+        for (String cmd: operations.keySet()) {
             try {
-                uosw.performUnsafeOperation(sql, operation);
+                uosw.performUnsafeOperation(cmd, operations.get(cmd));
             } catch (SQLException e) {
                 throw new RuntimeException("Error deleting group.", e);
             }
         }
     }
 
-    private static final String ADD_MEMBER_SQL = "INSERT INTO " + GROUP_MEMBERSHIPS + " (?, ?)";
+    private static final String ADD_MEMBER_SQL = "INSERT INTO " + GROUP_MEMBERSHIPS + " VALUES (?, ?)";
 
     public void addUserToGroup(final Group group, final Profile newMember) {
         if (group == null) throw new NullPointerException("group cannot be null");
@@ -935,7 +1024,7 @@ public class SharedBagManager
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
         if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
-        if (!isUserInGroup(owner, group.getName())) {
+        if (!isUserInGroup(owner, group)) {
             throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
         }
 
@@ -964,7 +1053,7 @@ public class SharedBagManager
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
         if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
-        if (!isUserInGroup(owner, group.getName())) {
+        if (!isUserInGroup(owner, group)) {
             throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
         }
         if (isBagSharedWithGroup(owner, bagName, group)) {
@@ -972,7 +1061,7 @@ public class SharedBagManager
         }
 
         try {
-            uosw.performUnsafeOperation("INSERT INTO " + GROUP_BAGS + " (?, ?)", new SQLOperation<Void>() {
+            uosw.performUnsafeOperation("INSERT INTO " + GROUP_BAGS + " VALUES (?, ?)", new SQLOperation<Void>() {
                 @Override
                 public Void run(PreparedStatement stm) throws SQLException {
                     stm.setInt(1, group.getGroupId());
@@ -987,6 +1076,11 @@ public class SharedBagManager
         } catch (SQLException e) {
             throw new RuntimeException("Could not share bag with group.", e);
         }
+        for (Profile member: getGroupMembers(group)) {
+        	if (member.getUserId() != owner.getUserId()) {
+        		informProfileOfChange(member.getName(), new CreationEvent(bag));
+        	}
+        }
     }
 
     public void unshareBagFromGroup(final Profile owner, final String bagName, final Group group) {
@@ -996,7 +1090,7 @@ public class SharedBagManager
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
         if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
-        if (!isUserInGroup(owner, group.getName())) {
+        if (!isUserInGroup(owner, group)) {
             throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
         }
         if (!isBagSharedWithGroup(owner, bagName, group)) {
@@ -1018,6 +1112,11 @@ public class SharedBagManager
             });
         } catch (SQLException e) {
             throw new RuntimeException("Could not unshare bag with group.", e);
+        }
+        for (Profile member: getGroupMembers(group)) {
+        	if (member.getUserId() != owner.getUserId()) {
+        		informProfileOfChange(member.getName(), new DeletionEvent(bag));
+        	}
         }
     }
 }

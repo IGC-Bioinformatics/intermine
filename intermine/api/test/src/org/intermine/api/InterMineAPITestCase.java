@@ -142,7 +142,7 @@ public class InterMineAPITestCase extends TestCase {
         osw.close();
     }
 
-    private void clearUserprofile() throws Exception {
+    protected void clearUserprofile() throws Exception {
         DeletingProfileManager pm = new DeletingProfileManager(os, uosw);
         Query q = new Query();
         QueryClass qc = new QueryClass(UserProfile.class);

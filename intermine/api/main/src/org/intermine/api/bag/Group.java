@@ -7,6 +7,8 @@ import org.intermine.api.profile.ProfileManager;
 
 public class Group {
 
+	public enum Field { name, description };
+	
     private final int groupId;
     private String name;
     private String description;
