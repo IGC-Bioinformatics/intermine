@@ -271,8 +271,10 @@ public class ObjectStoreInterMineImpl extends ObjectStoreAbstractImpl implements
         Connection con = null;
         PreparedStatement stm = null;
         T retval;
+        Boolean autoCommit = null;
         try {
             con = getConnection();
+            autoCommit = con.getAutoCommit();
             con.setAutoCommit(false);
             stm = con.prepareStatement(sql);
             retval = operation.run(stm);
@@ -286,6 +288,9 @@ public class ObjectStoreInterMineImpl extends ObjectStoreAbstractImpl implements
         } finally {
             if (stm != null) {
                 stm.close();
+            }
+            if (con != null && autoCommit != null) {
+                con.setAutoCommit(autoCommit);
             }
             releaseConnection(con);
         }
