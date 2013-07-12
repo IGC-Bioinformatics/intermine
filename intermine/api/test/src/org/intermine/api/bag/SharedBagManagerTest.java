@@ -1,4 +1,5 @@
 package org.intermine.api.bag;
+
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
@@ -206,12 +207,19 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
     public void testGetGroupsForBag() {
         Group g1 = underTest.createGroup(owner, "my-lab-a", null);
         Group g2 = underTest.createGroup(owner, "my-lab-b", null);
+        assertTrue(underTest.getGroups(addressBag).isEmpty());
         underTest.shareBagWithGroup(owner, "addressBag", g1);
         underTest.shareBagWithGroup(owner, "addressBag", g2);
         Set<Group> groups = underTest.getGroups(addressBag);
         assertEquals(2, groups.size());
         assertTrue(groups.contains(g1));
         assertTrue(groups.contains(g2));
+        underTest.unshareBagFromGroup(owner, "addressBag", g1);
+        groups = underTest.getGroups(addressBag);
+        assertEquals(1, groups.size());
+        assertTrue(groups.contains(g2));
+        underTest.unshareBagFromGroup(owner, "addressBag", g2);
+        assertTrue(underTest.getGroups(addressBag).isEmpty());
     }
 
     public void testMembersGetAccessToSharedBags() {
