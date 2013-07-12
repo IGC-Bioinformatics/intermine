@@ -10,8 +10,10 @@ import java.util.Map;
 
 import org.intermine.api.InterMineAPI;
 import org.intermine.api.bag.BagManager;
+import org.intermine.api.bag.SharedBagManager;
 import org.intermine.api.profile.InterMineBag;
 import org.intermine.api.profile.Profile;
+import org.intermine.api.types.ToMap;
 import org.intermine.model.userprofile.Tag;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.webservice.server.exceptions.ServiceException;
@@ -63,6 +65,11 @@ public class JSONListFormatter implements ListFormatter {
         } else {
             listMap.put("authorized", false);
         }
+        List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+        for (ToMap group: SharedBagManager.getInstance(im.getProfileManager()).getGroups(list)) {
+            groups.add(group.toMap());
+        }
+        listMap.put("groups", groups);
         return listMap;
     }
 
