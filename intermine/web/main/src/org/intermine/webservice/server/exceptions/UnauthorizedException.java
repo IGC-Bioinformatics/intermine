@@ -16,6 +16,11 @@ public class UnauthorizedException extends ServiceException {
         initResponseCode();
     }
 
+    public UnauthorizedException(Throwable t) {
+        super(t.getMessage(), t);
+        initResponseCode();
+    }
+
     private void initResponseCode() {
         setHttpErrorCode(Output.SC_UNAUTHORIZED);
     }
