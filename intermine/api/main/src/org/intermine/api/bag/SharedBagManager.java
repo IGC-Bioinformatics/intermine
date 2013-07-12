@@ -280,6 +280,45 @@ public class SharedBagManager
         }
     }
 
+    private static final String GET_BAGS_IN_GROUP_SQL =
+        "SELECT u.username, sb.name"
+        + " FROM userprofile AS u, savedbag as sb, " + GROUP_BAGS + " AS gb"
+        + " WHERE gb.groupid = ? AND gb.bagid = sb.id AND sb.userprofileid = u.id";
+
+    public Set<InterMineBag> getBagsInGroup(final Group group) {
+        if (group == null) throw new NullPointerException("group must not be null");
+        List<Pair<String, String>> bagsInGroup;
+        try {
+            bagsInGroup = uosw.performUnsafeOperation(
+                GET_BAGS_IN_GROUP_SQL,
+                new SQLOperation<List<Pair<String, String>>>() {
+                    @Override
+                    public List<Pair<String, String>> run(PreparedStatement stm) throws SQLException {
+                        List<Pair<String, String>> retval = new ArrayList<Pair<String, String>>();
+                        stm.setInt(1, group.getGroupId());
+                        ResultSet rs = stm.executeQuery();
+                        while (rs.next()) {
+                            Pair<String, String> row = new Pair<String, String>(rs.getString(1), rs.getString(2));
+                            retval.add(row);
+                        }
+                        return retval;
+                    }
+                }
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException("Error retrieving bag information");
+        }
+        Set<InterMineBag> retval = new HashSet<InterMineBag>();
+        for (Pair<String, String> userAndBag: bagsInGroup) {
+            Profile p = profileManager.getProfile(userAndBag.getKey());
+            if (p == null) throw new RuntimeException("Profile not found: " + userAndBag.getKey());
+            InterMineBag b = p.getSavedBags().get(userAndBag.getValue());
+            if (b == null) throw new RuntimeException("Bag not found: " + userAndBag.getValue());
+            retval.add(b);
+        }
+        return retval;
+    }
+
     private Map<String, Set<String>> getDirectlySharedBags(final Profile profile) {
         try {
             return uosw.performUnsafeOperation(GET_SHARED_BAGS_SQL, new SQLOperation<Map<String, Set<String>>>() {
@@ -920,7 +959,12 @@ public class SharedBagManager
             throw new RuntimeException("Could not create group '" + name + "'.", e);
         }
         Group g = getGroup(uuid.toString());
-        addUserToGroup(g, owner); // Owners are always members of their groups.
+        try {
+            // Owners are always members of their own groups.
+            addUserToGroup(g, owner);
+        } catch (ShareStateError e) {
+            throw new RuntimeException(e);
+        }
         return g;
     }
     
@@ -955,16 +999,11 @@ public class SharedBagManager
         }
     }
 
+    /**
+     * The caller is responsible for checking that this group may be legitimately deleted.
+     * @param group
+     */
     public void deleteGroup(final Group group) {
-        SQLOperation<Void> operation = new SQLOperation<Void>() {
-            @Override
-            public Void run(PreparedStatement stm) throws SQLException {
-                stm.setInt(1, group.getGroupId());
-                int changed = stm.executeUpdate();
-                if (changed != 1) throw new SQLException("Expected a single deletion, but got " + changed);
-                return null;
-            }
-        };
         Map<String, ItemDeleter> operations = new LinkedHashMap<String, ItemDeleter>();
         String sql;
         sql = "DELETE FROM " + USERGROUPS + " WHERE id = ?";
@@ -985,11 +1024,20 @@ public class SharedBagManager
 
     private static final String ADD_MEMBER_SQL = "INSERT INTO " + GROUP_MEMBERSHIPS + " VALUES (?, ?)";
 
-    public void addUserToGroup(final Group group, final Profile newMember) {
+    /**
+     * The caller is responsible for checking that this member may be added to this group.
+     * @param group The group to add the user to.
+     * @param newMember The new member.
+     * @throws ShareStateError 
+     */
+    public void addUserToGroup(final Group group, final Profile newMember) throws ShareStateError {
         if (group == null) throw new NullPointerException("group cannot be null");
         if (newMember == null) throw new NullPointerException("new member cannot be null");
         if (!newMember.isLoggedIn()) throw new IllegalArgumentException("this this a temporary profile");
 
+        if (isUserInGroup(newMember, group)) {
+            throw new ShareStateError("This user is already in this group");
+        }
         try {
             uosw.performUnsafeOperation(ADD_MEMBER_SQL, new SQLOperation<Void>() {
                 @Override
@@ -1013,11 +1061,14 @@ public class SharedBagManager
         + " WHERE groupid = ?"
         + " AND bagid IN (SELECT b.id FROM savedbag as b WHERE b.userprofileid = ?)";
  
-    public void removeUserFromGroup(final Group group, final Profile oldMember) {
+    public void removeUserFromGroup(final Group group, final Profile oldMember) throws ShareStateError {
         if (group == null) throw new NullPointerException("group cannot be null");
         if (oldMember == null) throw new NullPointerException("old member cannot be null");
         if (group.getOwnerId() == oldMember.getUserId()) {
             throw new IllegalStateException("Cannot remove this member - they own the group.");
+        }
+        if (!isUserInGroup(oldMember, group)) {
+            throw new ShareStateError("This user is not in this group");
         }
         // Remove the bags first, because we really don't want to remove the user fail to
         // unshare their bags.
@@ -1053,15 +1104,15 @@ public class SharedBagManager
         }
     }
 
-    public boolean isBagSharedWithGroup(final Profile owner, final String bagName, final Group group) {
+    public boolean isBagSharedWithGroup(final Profile owner, final String bagName, final Group group) throws BagNotFound, BadGroupPermission {
         if (owner == null) throw new NullPointerException("owner cannot be null");
         if (bagName == null) throw new NullPointerException("bagName cannot be null");
         if (group == null) throw new NullPointerException("group cannot be null");
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
-        if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
+        if (bag == null) throw new BagNotFound(bagName);
         if (!isUserInGroup(owner, group)) {
-            throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
+            throw new BadGroupPermission(owner.getName(), group.getUUID());
         }
 
         try {
@@ -1082,18 +1133,16 @@ public class SharedBagManager
         }
     }
 
-    public void shareBagWithGroup(final Profile owner, final String bagName, final Group group) {
+    public void shareBagWithGroup(final Profile owner, final String bagName, final Group group)
+            throws BagNotFound, BadGroupPermission, ShareStateError {
         if (owner == null) throw new NullPointerException("owner cannot be null");
         if (bagName == null) throw new NullPointerException("bagName cannot be null");
         if (group == null) throw new NullPointerException("group cannot be null");
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
-        if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
-        if (!isUserInGroup(owner, group)) {
-            throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
-        }
+        if (bag == null) throw new BagNotFound(bagName);
         if (isBagSharedWithGroup(owner, bagName, group)) {
-            throw new IllegalStateException(String.format("%s is already shared with the %s group", bag.getName(), group.getName()));
+            throw new ShareStateError(String.format("%s is already shared with the %s group", bag.getName(), group.getName()));
         }
 
         try {
@@ -1119,18 +1168,16 @@ public class SharedBagManager
         }
     }
 
-    public void unshareBagFromGroup(final Profile owner, final String bagName, final Group group) {
+    public void unshareBagFromGroup(final Profile owner, final String bagName, final Group group)
+            throws BagNotFound, BadGroupPermission, ShareStateError {
         if (owner == null) throw new NullPointerException("owner cannot be null");
         if (bagName == null) throw new NullPointerException("bagName cannot be null");
         if (group == null) throw new NullPointerException("group cannot be null");
         if (!owner.isLoggedIn()) throw new IllegalStateException("this is a temporary profile");
         final InterMineBag bag = owner.getSavedBags().get(bagName);
-        if (bag == null) throw new NullPointerException("No bag with that name: " + bagName);
-        if (!isUserInGroup(owner, group)) {
-            throw new IllegalStateException(String.format("This user (%s) is not in this group (%s)", owner.getName(), group.getName()));
-        }
+        if (bag == null) throw new BagNotFound(bagName);
         if (!isBagSharedWithGroup(owner, bagName, group)) {
-            throw new IllegalStateException(String.format("%s is not shared with the %s group", bag.getName(), group.getName()));
+            throw new ShareStateError(String.format("%s is not shared with the %s group", bag.getName(), group.getName()));
         }
 
         try {
