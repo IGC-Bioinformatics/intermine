@@ -772,7 +772,7 @@ public class SharedBagManager
             + " FROM " + USERGROUPS + " AS g, " + GROUP_MEMBERSHIPS + " AS gm"
             + " WHERE g.id = gm.groupid AND gm.memberid = ?";
 
-    public Set<Group> getGroupsUserBelongsTo(final Profile user) {
+    public Set<Group> getGroups(final Profile user) {
         if (user == null) throw new NullPointerException("owner must not be null");
         if (!user.isLoggedIn()) throw new IllegalStateException("This is a temporary profile");
         try {
@@ -802,6 +802,43 @@ public class SharedBagManager
             );
         } catch (SQLException e) {
             throw new RuntimeException("Could not retrieve groups", e);
+        }
+    }
+
+    private static final String GET_GROUPS_FOR_BAG_SQL =
+        "SELECT g.id, g.uuid, g.name, g.description, g.ownerid"
+        + " FROM " + USERGROUPS + " AS g, " + GROUP_BAGS + " AS gb"
+        + " WHERE gb.bagid = ? AND g.id = gb.groupid";
+
+    public Set<Group> getGroups(final InterMineBag bag) {
+        if (bag == null) throw new NullPointerException("bag must not be null");
+        try {
+            return uosw.performUnsafeOperation(
+                GET_GROUPS_FOR_BAG_SQL,
+                new SQLOperation<Set<Group>>() {
+                    @Override
+                    public Set<Group> run(PreparedStatement stm) throws SQLException {
+                        Set<Group> ret = new HashSet<Group>();
+                        stm.setInt(1, bag.getSavedBagId());
+                        ResultSet rs = stm.executeQuery();
+                        while (rs.next()) {
+                            int id, ownerId;
+                            String uuid, name, description;
+                            id = rs.getInt(1);
+                            uuid = rs.getString(2);
+                            name = rs.getString(3);
+                            description = rs.getString(4);
+                            ownerId = rs.getInt(5);
+                            Group g = new Group(id, name, description, ownerId, uuid);
+                            g.setProfileManager(profileManager);
+                            ret.add(g);
+                        }
+                        return ret;
+                    }
+                }
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException("Error retrieving groups.", e);
         }
     }
     

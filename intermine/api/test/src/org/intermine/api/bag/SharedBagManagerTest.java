@@ -15,7 +15,6 @@ import org.intermine.api.types.Pair;
 import org.intermine.metadata.FieldDescriptor;
 import org.intermine.objectstore.intermine.ObjectStoreInterMineImpl;
 import org.intermine.sql.DatabaseUtil;
-import org.junit.Test;
 
 public class SharedBagManagerTest extends InterMineAPITestCase {
 
@@ -149,23 +148,23 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
 
     public void testOwnerIsAlsoMember() {
         Group g = underTest.createGroup(owner, "my-lab", null);
-        Set<Group> groups = underTest.getGroupsUserBelongsTo(owner);
+        Set<Group> groups = underTest.getGroups(owner);
         assertTrue(groups.contains(g));
         assertTrue(underTest.isUserInGroup(owner, g));
     }
 
     public void testNotMemberIsNotAMember() {
         Group g = underTest.createGroup(owner, "my-lab", null);
-        Set<Group> groups = underTest.getGroupsUserBelongsTo(thirdParty);
+        Set<Group> groups = underTest.getGroups(thirdParty);
         assertFalse(groups.contains(g));
         assertFalse(underTest.isUserInGroup(thirdParty, g));
     }
 
     public void testAddMember() {
         Group g = underTest.createGroup(owner, "my-lab", null);
-        assertTrue(underTest.getGroupsUserBelongsTo(memberA).isEmpty());
+        assertTrue(underTest.getGroups(memberA).isEmpty());
         underTest.addUserToGroup(g, memberA);
-        Set<Group> groups = underTest.getGroupsUserBelongsTo(memberA);
+        Set<Group> groups = underTest.getGroups(memberA);
         assertTrue(groups.contains(g));
         assertTrue(underTest.isUserInGroup(memberA, g));
         assertTrue(underTest.getOwnGroups(memberA).isEmpty());
@@ -204,6 +203,17 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertFalse(underTest.isBagSharedWithGroup(owner, "addressBag", g));
     }
 
+    public void testGetGroupsForBag() {
+        Group g1 = underTest.createGroup(owner, "my-lab-a", null);
+        Group g2 = underTest.createGroup(owner, "my-lab-b", null);
+        underTest.shareBagWithGroup(owner, "addressBag", g1);
+        underTest.shareBagWithGroup(owner, "addressBag", g2);
+        Set<Group> groups = underTest.getGroups(addressBag);
+        assertEquals(2, groups.size());
+        assertTrue(groups.contains(g1));
+        assertTrue(groups.contains(g2));
+    }
+
     public void testMembersGetAccessToSharedBags() {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
@@ -234,10 +244,10 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
         underTest.shareBagWithGroup(owner, "companyBag", g);
-        assertTrue(underTest.getGroupsUserBelongsTo(memberA).contains(g));
+        assertTrue(underTest.getGroups(memberA).contains(g));
         assertTrue(bm.getBags(memberA).containsKey("companyBag"));
         underTest.deleteGroup(g);
-        Set<Group> memberAGroups = underTest.getGroupsUserBelongsTo(memberA);
+        Set<Group> memberAGroups = underTest.getGroups(memberA);
         assertFalse(memberAGroups + " should not contain " + g, memberAGroups.contains(g));
         assertFalse(bm.getBags(memberA).containsKey("companyBag"));
     }
