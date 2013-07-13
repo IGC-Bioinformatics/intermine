@@ -161,7 +161,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertFalse(underTest.isUserInGroup(thirdParty, g));
     }
 
-    public void testAddMember() {
+    public void testAddMember() throws ShareStateError {
         Group g = underTest.createGroup(owner, "my-lab", null);
         assertTrue(underTest.getGroups(memberA).isEmpty());
         underTest.addUserToGroup(g, memberA);
@@ -171,7 +171,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertTrue(underTest.getOwnGroups(memberA).isEmpty());
     }
 
-    public void testGetMembers() {
+    public void testGetMembers() throws ShareStateError {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
         Set<Profile> members = underTest.getGroupMembers(g);
@@ -181,7 +181,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         }
     }
 
-    public void testRemoveMember() {
+    public void testRemoveMember() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberB);
         assertTrue(underTest.isUserInGroup(memberB, g));
@@ -189,14 +189,14 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertFalse(underTest.isUserInGroup(memberB, g));
     }
 
-    public void testShareBagWithGroup() {
+    public void testShareBagWithGroup() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         assertFalse(underTest.isBagSharedWithGroup(owner, "addressBag", g));
         underTest.shareBagWithGroup(owner, "addressBag", g);
         assertTrue(underTest.isBagSharedWithGroup(owner, "addressBag", g));
     }
 
-    public void testUnshareBagWithGroup() {
+    public void testUnshareBagWithGroup() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.shareBagWithGroup(owner, "addressBag", g);
         assertTrue(underTest.isBagSharedWithGroup(owner, "addressBag", g));
@@ -204,7 +204,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertFalse(underTest.isBagSharedWithGroup(owner, "addressBag", g));
     }
 
-    public void testGetGroupsForBag() {
+    public void testGetGroupsForBag() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g1 = underTest.createGroup(owner, "my-lab-a", null);
         Group g2 = underTest.createGroup(owner, "my-lab-b", null);
         assertTrue(underTest.getGroups(addressBag).isEmpty());
@@ -222,7 +222,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertTrue(underTest.getGroups(addressBag).isEmpty());
     }
 
-    public void testMembersGetAccessToSharedBags() {
+    public void testMembersGetAccessToSharedBags() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
         underTest.shareBagWithGroup(owner, "addressBag", g);
@@ -234,7 +234,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertTrue(accessibleBags.containsKey("addressBag"));
     }
 
-    public void testRevokingMembershipRevokesAccess() {
+    public void testRevokingMembershipRevokesAccess() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
         underTest.addUserToGroup(g, memberB);
@@ -248,7 +248,7 @@ public class SharedBagManagerTest extends InterMineAPITestCase {
         assertTrue(accessibleBags.containsKey("bankBag"));
     }
 
-    public void testDeletingGroupRemovesMembershipsAndBags() {
+    public void testDeletingGroupRemovesMembershipsAndBags() throws ShareStateError, BagNotFound, BadGroupPermission {
         Group g = underTest.createGroup(owner, "my-lab", null);
         underTest.addUserToGroup(g, memberA);
         underTest.shareBagWithGroup(owner, "companyBag", g);
