@@ -1,8 +1,11 @@
 package org.intermine.test;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,9 +21,12 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.commons.io.IOUtils;
+import org.custommonkey.xmlunit.Diff;
 import org.custommonkey.xmlunit.XMLTestCase;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.intermine.api.InterMineAPITestCase;
+import org.intermine.api.bag.Group;
+import org.intermine.api.bag.SharedBagManager;
 import org.intermine.api.profile.BagState;
 import org.intermine.api.profile.BagValue;
 import org.intermine.api.profile.InterMineBag;
@@ -35,19 +41,22 @@ import org.intermine.model.testmodel.CEO;
 import org.intermine.model.testmodel.Department;
 import org.intermine.model.testmodel.Employee;
 import org.intermine.model.userprofile.Tag;
+import org.intermine.objectstore.StoreDataTestCase;
 import org.intermine.pathquery.PathQuery;
 import org.intermine.util.DynamicUtil;
 import org.intermine.web.ProfileBinding;
 import org.intermine.web.ProfileManagerBinding;
 
+import com.sun.org.apache.xml.internal.serializer.SerializerTrace;
+
 public class ProfileManagerBindingTest extends InterMineAPITestCase
 {
 
-	public ProfileManagerBindingTest(String arg) {
-		super(arg);
-	}
+    public ProfileManagerBindingTest(String arg) {
+        super(arg);
+    }
 
-	private Profile bobProfile, sallyProfile;
+    private Profile bobProfile, sallyProfile;
     private ProfileManager pm;
     private final Integer bobId = new Integer(101);
     private final Integer sallyId = new Integer(102);
@@ -57,11 +66,33 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
 
     private final String bobKey = "BOBKEY";
 
-	public void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
+        StoreDataTestCase.oneTimeSetUp();
         classKeys = im.getClassKeys();
         pm = im.getProfileManager();
         setUpUserProfiles();
+        configureXUnit();
+    }
+    
+    private void configureXUnit() {
+        XMLUnit.setControlParser("org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
+        XMLUnit.setTestParser("org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
+        XMLUnit.setSAXParserFactory("org.apache.xerces.jaxp.SAXParserFactoryImpl");
+        XMLUnit.setTransformerFactory("org.apache.xalan.processor.TransformerFactoryImpl");
+    }
+
+    public void tearDown() throws Exception {
+        try {
+            super.tearDown();
+        } catch (Throwable t) {
+            System.err.println("[WARNING] error during teardown: " + t);
+        }
+        try {
+            StoreDataTestCase.oneTimeTearDown();
+        } catch (Throwable t) {
+            System.err.println("[WARNING] error during teardown: " + t);
+        }
     }
 
     private void setUpUserProfiles() throws Exception {
@@ -130,12 +161,7 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
         sallyProfile.saveBag("sally_bag1", objectBag);
 
         sallyProfile.saveTemplate("template", template);
-    }
-	
-	public void testMarshal() throws Exception {
-        XMLUnit.setIgnoreWhitespace(true);
-        StringWriter sw = new StringWriter();
-        XMLOutputFactory factory = XMLOutputFactory.newInstance();
+
         TagManager tagManager = im.getTagManager();
 
         tagManager.addTag("test-tag", "Department.company", "reference", bobProfile);
@@ -144,6 +170,19 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
         tagManager.addTag("test-tag2", "Department.employees", "collection", bobProfile);
 
         tagManager.addTag("test-tag", "Department.company", "reference", sallyProfile);
+
+        SharedBagManager sbm = SharedBagManager.getInstance(pm);
+        Group bobsGroup = sbm.createGroup(bobProfile, "bobs-group", "A group for bob and his friends");
+        sbm.addUserToGroup(bobsGroup, sallyProfile);
+        sbm.shareBagWithGroup(bobProfile, "bag1", bobsGroup);
+    }
+    
+    public void testMarshal() throws Exception {
+        XMLUnit.setIgnoreWhitespace(true);
+        XMLUnit.setIgnoreComments(true);
+        XMLUnit.setIgnoreAttributeOrder(true);
+        StringWriter sw = new StringWriter();
+        XMLOutputFactory factory = XMLOutputFactory.newInstance();
 
         try {
             XMLStreamWriter writer = factory.createXMLStreamWriter(sw);
@@ -155,19 +194,15 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
             throw new RuntimeException(e);
         }
 
+        InputStream is = getClass().getClassLoader().getResourceAsStream("ProfileManagerBindingTest.xml");
 
-        InputStream is =
-            getClass().getClassLoader().getResourceAsStream("ProfileManagerBindingTest.xml");
-        String expectedXml = IOUtils.toString(is);
-
-        String actualXml = sw.toString().trim();
-
-        XMLTestCase xmlTester = new XMLTestCase();
-        xmlTester.assertXMLEqual(expectedXml, actualXml);
+        String control = IOUtils.toString(is), test = sw.toString();
+        Diff diff = new Diff(control, test);
+        assertTrue("XML is identical " + diff.toString(), diff.identical());
     }
 
     public void testUnmarshal() throws Exception {
-    	fail("Skip me for a bit...");
+        fail("Skip me for a bit...");
         InputStream is =
             getClass().getClassLoader().getResourceAsStream("ProfileManagerBindingTestNewIDs.xml");
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
