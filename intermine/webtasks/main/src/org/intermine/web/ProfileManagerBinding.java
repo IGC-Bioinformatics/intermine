@@ -90,9 +90,7 @@ public final class ProfileManagerBinding
                 LOG.info("Writing profile: " + profile.getUsername());
                 long startTime = System.currentTimeMillis();
 
-                ProfileBinding.marshal(profile, profileManager.getProductionObjectStore(), writer,
-                                       profileManager.getVersion(),
-                                       getClassKeys(profileManager.getProductionObjectStore()));
+                ProfileBinding.marshal(profile, profileManager, writer);
 
                 long totalTime = System.currentTimeMillis() - startTime;
                 LOG.info("Finished writing profile: " + profile.getUsername()
@@ -124,18 +122,6 @@ public final class ProfileManagerBinding
         } catch (SQLException e) {
             throw new RuntimeException("Error during retrieving profile version from database.", e);
         }
-    }
-
-    private static Map<String, List<FieldDescriptor>> getClassKeys(ObjectStore os) {
-        Properties classKeyProps = new Properties();
-        try {
-            InputStream inputStream = ProfileManagerBinding.class.getClassLoader()
-                                      .getResourceAsStream("class_keys.properties");
-            classKeyProps.load(inputStream);
-        } catch (IOException ioe) {
-            new BuildException("class_keys.properties not found", ioe);
-        }
-        return ClassKeyHelper.readKeys(os.getModel(), classKeyProps);
     }
 
     /**

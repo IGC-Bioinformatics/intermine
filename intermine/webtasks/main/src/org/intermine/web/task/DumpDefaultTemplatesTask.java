@@ -113,7 +113,7 @@ public class DumpDefaultTemplatesTask extends Task
             XMLOutputFactory factory = XMLOutputFactory.newInstance();
             XMLStreamWriter writer = factory.createXMLStreamWriter(sw);
 
-            write(writer, superProfile, os);
+            write(writer, superProfile, pm);
             writer.close();
 
             fw.write(XmlUtil.indentXmlSimple(sw.toString()));
@@ -138,12 +138,11 @@ public class DumpDefaultTemplatesTask extends Task
      * @param os objectstore
      * @throws Exception if something goes wrong
      */
-    protected void write(XMLStreamWriter writer, Profile superProfile, ObjectStore os)
+    protected void write(XMLStreamWriter writer, Profile superProfile, ProfileManager pm)
         throws Exception {
 
         log("Writing tags and templates...");
-        ProfileBinding.marshal(superProfile, os, writer, false, false, true, false, true, true,
-                PathQuery.USERPROFILE_VERSION, null);
+        ProfileBinding.marshal(superProfile, pm, writer, false, false, true, false, true, true);
         log("Done.");
     }
 }

@@ -10,6 +10,8 @@ package org.intermine.web;
  *
  */
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -17,12 +19,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.log4j.Logger;
+import org.apache.tools.ant.BuildException;
+import org.intermine.api.bag.Group;
+import org.intermine.api.bag.SharedBagManager;
 import org.intermine.api.bag.SharingInvite;
 import org.intermine.api.config.ClassKeyHelper;
 import org.intermine.api.profile.InterMineBag;
@@ -65,9 +71,8 @@ public final class ProfileBinding
      * @param version the version number of the xml format, an attribute of the profile manager
      * @param classkeys the classKey
      */
-    public static void marshal(Profile profile, ObjectStore os, XMLStreamWriter writer,
-            int version, Map<String, List<FieldDescriptor>> classkeys) {
-        marshal(profile, os, writer, true, true, true, true, true, false, version, classkeys);
+    public static void marshal(Profile profile, ProfileManager profileManager, XMLStreamWriter writer) {
+        marshal(profile, profileManager, writer, true, true, true, true, true, false);
     }
 
     /**
@@ -84,11 +89,21 @@ public final class ProfileBinding
      * @param classKeys has to be setted if you save bags
      * @param version the version number of the xml format, an attribute of the profile manager
      */
-    public static void marshal(Profile profile, ObjectStore os, XMLStreamWriter writer,
-            boolean writeUserAndPassword, boolean writeQueries, boolean writeTemplates,
-            boolean writeBags, boolean writeTags, boolean onlyConfigTags, int version, Map<String,
-            List<FieldDescriptor>> classKeys) {
+    public static void marshal(
+    		Profile profile,
+    		ProfileManager profileManager,
+    		XMLStreamWriter writer,
+            boolean writeUserAndPassword,
+            boolean writeQueries,
+            boolean writeTemplates,
+            boolean writeBags,
+            boolean writeTags,
+            boolean onlyConfigTags
+        ) {
 
+    	ObjectStore os = profileManager.getProductionObjectStore();
+    	Map<String,List<FieldDescriptor>> classKeys = getClassKeys(os);
+    	int version = profileManager.getVersion();
         try {
             writer.writeCharacters("\n");
             writer.writeStartElement("userprofile");
@@ -106,6 +121,7 @@ public final class ProfileBinding
             }
 
             if (writeBags) {
+            	InterMineBagBinding bagBinding = new InterMineBagBinding(profileManager);
                 writer.writeCharacters("\n");
                 writer.writeStartElement("bags");
                 for (Map.Entry<String, InterMineBag> entry : profile.getSavedBags().entrySet()) {
@@ -114,7 +130,7 @@ public final class ProfileBinding
                     bag.setKeyFieldNames(ClassKeyHelper.getKeyFieldNames(classKeys,
                                          bag.getQualifiedType()));
                     if (bag != null) {
-                        InterMineBagBinding.marshal(bag, writer);
+                        bagBinding.marshal(bag, writer);
                     } else {
                         LOG.error("bag was null for bagName: " + bagName
                                   + " username: " + profile.getUsername());
@@ -163,6 +179,7 @@ public final class ProfileBinding
             }
             // end <tags>
             writer.writeEndElement();
+            writer.writeCharacters("\n");
 
             /* PREFERENCES */
             writer.writeStartElement("preferences");
@@ -172,6 +189,7 @@ public final class ProfileBinding
                 writer.writeEndElement();
             }
             writer.writeEndElement();
+            writer.writeCharacters("\n");
 
             /* INVITATIONS */
             writer.writeStartElement("invitations");
@@ -205,8 +223,14 @@ public final class ProfileBinding
                 writer.writeEndElement();
 
                 writer.writeEndElement();
+                writer.writeCharacters("\n");
             }
             writer.writeEndElement();
+            writer.writeCharacters("\n");
+            
+            // Groups
+            GroupBinding groupBinding = new GroupBinding(profileManager);
+            groupBinding.marshalGroups(profile, writer);
 
             // end <userprofile>
             writer.writeEndElement();
@@ -253,5 +277,17 @@ public final class ProfileBinding
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+    }
+   
+    private static Map<String, List<FieldDescriptor>> getClassKeys(ObjectStore os) {
+        Properties classKeyProps = new Properties();
+        try {
+            InputStream inputStream = ProfileBinding.class.getClassLoader()
+                                      .getResourceAsStream("class_keys.properties");
+            classKeyProps.load(inputStream);
+        } catch (IOException ioe) {
+            new BuildException("class_keys.properties not found", ioe);
+        }
+        return ClassKeyHelper.readKeys(os.getModel(), classKeyProps);
     }
 }

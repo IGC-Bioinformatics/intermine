@@ -20,8 +20,10 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.intermine.api.bag.SharedBagManager;
 import org.intermine.api.profile.BagValue;
 import org.intermine.api.profile.InterMineBag;
+import org.intermine.api.profile.ProfileManager;
 import org.intermine.objectstore.ObjectStoreWriter;
 import org.intermine.util.SAXParser;
 import org.xml.sax.InputSource;
@@ -33,6 +35,13 @@ import org.xml.sax.InputSource;
  */
 public class InterMineBagBinding
 {
+	
+	private ProfileManager profileManager;
+
+	public InterMineBagBinding(ProfileManager profileManager) {
+		this.profileManager = profileManager;
+	}
+
     /**
      * Convert an InterMine bag to XML
      * @param bag the InterMineIdBag
@@ -58,7 +67,7 @@ public class InterMineBagBinding
      * @param bag the InterMineIdBag
      * @param writer the XMLStreamWriter to write to
      */
-    public static void marshal(InterMineBag bag, XMLStreamWriter writer) {
+    public void marshal(InterMineBag bag, XMLStreamWriter writer) {
         try {
             writer.writeCharacters("\n");
             writer.writeStartElement("bag");
@@ -71,12 +80,26 @@ public class InterMineBagBinding
                 writer.writeAttribute("description", bag.getDescription());
             }
             writer.writeAttribute("status", bag.getState());
+            
+            // BagValues
             List<BagValue> keyFieldValues = bag.getContents();
             for (BagValue bagValues : keyFieldValues) {
                 writer.writeEmptyElement("bagValue");
                 writer.writeAttribute("value", bagValues.getValue());
                 writer.writeAttribute("extra", bagValues.getExtra());
             }
+            
+            // Sharing information
+            writer.writeStartElement("sharedWith");
+            SharedBagManager sbm = SharedBagManager.getInstance(profileManager);
+            for (String userName: sbm.getUsersWithAccessToBag(bag)) {
+            	writer.writeStartElement("user");
+            	writer.writeCharacters(userName);
+            	writer.writeEndElement();
+            	writer.writeCharacters("\n");
+            }
+            writer.writeEndElement();
+            
             writer.writeEndElement();
         } catch (XMLStreamException e) {
             throw new RuntimeException(e);
