@@ -26,6 +26,7 @@ import org.intermine.metadata.FieldDescriptor;
 import org.intermine.metadata.Model;
 import org.intermine.model.testmodel.CEO;
 import org.intermine.model.testmodel.Department;
+import org.intermine.objectstore.StoreDataTestCase;
 import org.intermine.pathquery.PathQuery;
 
 /**
@@ -52,10 +53,20 @@ public class ProfileManagerTest extends InterMineAPITestCase
         super.setUp();
         classKeys = im.getClassKeys();
         pm = im.getProfileManager();
+        StoreDataTestCase.oneTimeSetUp();
     }
 
     public void tearDown() throws Exception {
-        super.tearDown();
+        try {
+            super.tearDown();
+        } catch (Throwable t) {
+            System.err.println("[WARNING] error during teardown: " + t);
+        }
+        try {
+            StoreDataTestCase.oneTimeTearDown();
+        } catch (Throwable t) {
+            System.err.println("[WARNING] error during teardown: " + t);
+        }
     }
 
     private void setUpUserProfiles() throws Exception {
