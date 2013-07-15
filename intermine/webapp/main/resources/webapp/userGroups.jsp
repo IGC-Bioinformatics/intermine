@@ -37,7 +37,6 @@
       <tbody></tbody>
   </table>
 
-  <button id="delete-groups"><fmt:message key="groups.delete"/></button>
   <button id="add-group"><fmt:message key="groups.add"/></button>
   <div id="add-group-form" style="display:none">
       <form>
@@ -54,17 +53,6 @@
           <button class="confirm"><fmt:message key="confirm.ok"/></button>
           <button class="cancel"><fmt:message key="confirm.cancel"/></button>
      </form>
-  </div>
-  <div id="delete-groups-form" style="display:none">
-      <h3><fmt:message key="groups.confirm.delete"/></h3>
-
-      <div><em><fmt:message key="groups.delete"/></em></div>
-      <ul class="to-delete"></ul>
-
-      <div><em><fmt:message key="groups.leave"/></em></div>
-      <ul class="to-leave"></ul>
-      <button class="confirm"><fmt:message key="groups.delete"/></button>
-      <button class="cancel"><fmt:message key="confirm.cancel"/></button>
   </div>
 
   <script type="text/javascript" src="js/tablesort.js"></script>
