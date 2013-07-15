@@ -67,7 +67,7 @@ public class SharedBagBinding
                 writer.writeCharacters("\n");
                 writer.writeStartElement("shared-bag");
                 writer.writeAttribute("name", entry.getKey());
-                Date dateCreated = ((InterMineBag) entry.getValue()).getDateCreated();
+                Date dateCreated = entry.getValue().getDateCreated();
                 if (dateCreated != null) {
                     writer.writeAttribute("date-created", "" +dateCreated.getTime());
                 }

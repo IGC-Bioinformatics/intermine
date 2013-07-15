@@ -43,7 +43,6 @@ public final class SavedQueryBinding
      */
     public static void marshal(SavedQuery query, XMLStreamWriter writer, int version) {
         try {
-            writer.writeCharacters("\n");
             writer.writeStartElement("saved-query");
 
             writer.writeAttribute("name", query.getName());

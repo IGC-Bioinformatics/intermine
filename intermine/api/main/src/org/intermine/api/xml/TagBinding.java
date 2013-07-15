@@ -36,7 +36,6 @@ public class TagBinding
      */
     public static void marshal(Tag tag, XMLStreamWriter writer) {
         try {
-            writer.writeCharacters("\n");
             writer.writeStartElement("tag");
             writer.writeAttribute("name", tag.getTagName());
             writer.writeAttribute("objectIdentifier", tag.getObjectIdentifier());
