@@ -1,15 +1,13 @@
 package org.intermine.test;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -17,12 +15,10 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.apache.commons.io.IOUtils;
-import org.custommonkey.xmlunit.Diff;
-import org.custommonkey.xmlunit.XMLTestCase;
+import org.custommonkey.xmlunit.XMLAssert;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.intermine.api.InterMineAPITestCase;
 import org.intermine.api.bag.Group;
@@ -41,13 +37,11 @@ import org.intermine.model.testmodel.CEO;
 import org.intermine.model.testmodel.Department;
 import org.intermine.model.testmodel.Employee;
 import org.intermine.model.userprofile.Tag;
+import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.objectstore.StoreDataTestCase;
 import org.intermine.pathquery.PathQuery;
 import org.intermine.util.DynamicUtil;
-import org.intermine.web.ProfileBinding;
 import org.intermine.web.ProfileManagerBinding;
-
-import com.sun.org.apache.xml.internal.serializer.SerializerTrace;
 
 public class ProfileManagerBindingTest extends InterMineAPITestCase
 {
@@ -69,7 +63,7 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
     public void setUp() throws Exception {
         super.setUp();
         StoreDataTestCase.oneTimeSetUp();
-        classKeys = im.getClassKeys();
+        classKeys = getClassKeys();
         pm = im.getProfileManager();
         setUpUserProfiles();
         configureXUnit();
@@ -79,7 +73,10 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
         XMLUnit.setControlParser("org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
         XMLUnit.setTestParser("org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
         XMLUnit.setSAXParserFactory("org.apache.xerces.jaxp.SAXParserFactoryImpl");
-        XMLUnit.setTransformerFactory("org.apache.xalan.processor.TransformerFactoryImpl");
+        //XMLUnit.setTransformerFactory("javax.xml.transform.TransformerFactory");
+        //XMLUnit.setIgnoreWhitespace(true);
+        //XMLUnit.setIgnoreComments(true);
+        //XMLUnit.setIgnoreAttributeOrder(true);
     }
 
     public void tearDown() throws Exception {
@@ -95,48 +92,59 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
         }
     }
 
+    private Map<String, List<FieldDescriptor>> getClassKeys() {
+        Model testmodel = Model.getInstanceByName("testmodel");
+        Map<String, List<FieldDescriptor>> ret = new HashMap<String, List<FieldDescriptor>>(im.getClassKeys());
+        ret.put("Department", Arrays.asList(testmodel.getClassDescriptorByName("Department").getFieldDescriptorByName("name")));
+        ret.put("Employee", Arrays.asList(testmodel.getClassDescriptorByName("Employee").getFieldDescriptorByName("name")));
+        return ret;
+    }
+
+    private Profile newLocalProfile(String name, String password, String apiKey, Integer id) {
+        Profile p = new Profile(
+            pm, name, id, password,
+            Collections.EMPTY_MAP, Collections.EMPTY_MAP, Collections.EMPTY_MAP,
+            apiKey,
+            true, false
+        );
+
+        pm.createProfile(p);
+        return p;
+    }
+
+    private Department getDepartmentByName(String name) throws ObjectStoreException {
+        Department deptEx = new Department();
+        deptEx.setName(name);
+        return (Department) os.getObjectByExample(deptEx, Collections.singleton("name"));
+    }
+
     private void setUpUserProfiles() throws Exception {
         PathQuery query = new PathQuery(Model.getInstanceByName("testmodel"));
         Date date = new Date();
         SavedQuery sq = new SavedQuery("query1", date, query);
 
         // bob's details
-        String bobName = "bob";
-        List<String> classKeys = new ArrayList<String>();
-        classKeys.add("name");
-        InterMineBag bag = new InterMineBag("bag1", "Department", "This is some description",
-                new Date(), BagState.CURRENT, os, bobId, uosw, classKeys);
+        bobProfile = newLocalProfile("bob", bobPass, bobKey, bobId);
+        InterMineBag bag = bobProfile.createBag("bag1", "Department", "This is some description", classKeys);
 
-        Department deptEx = new Department();
-        deptEx.setName("DepartmentA1");
-        Set<String> fieldNames = new HashSet<String>();
-        fieldNames.add("name");
-        Department departmentA1 = (Department) os.getObjectByExample(deptEx, fieldNames);
+        Department departmentA1 = getDepartmentByName("DepartmentA1"), departmentB1 = getDepartmentByName("DepartmentB1");
         bag.addIdToBag(departmentA1.getId(), "Department");
-
-        Department deptEx2 = new Department();
-        deptEx2.setName("DepartmentB1");
-        Department departmentB1 = (Department) os.getObjectByExample(deptEx2, fieldNames);
         bag.addIdToBag(departmentB1.getId(), "Department");
 
         ApiTemplate template =
             new ApiTemplate("template", "ttitle", "tcomment",
                               new PathQuery(Model.getInstanceByName("testmodel")));
 
-        bobProfile = new Profile(pm, bobName, bobId, bobPass,
-                Collections.EMPTY_MAP, Collections.EMPTY_MAP, Collections.EMPTY_MAP, bobKey,
-                true, false);
-        pm.createProfile(bobProfile);
         bobProfile.saveQuery("query1", sq);
-        bobProfile.saveBag("bag1", bag);
         bobProfile.saveTemplate("template", template);
 
         query = new PathQuery(Model.getInstanceByName("testmodel"));
         sq = new SavedQuery("query1", date, query);
 
         // sally details
-        String sallyName = "sally";
+        sallyProfile = newLocalProfile("sally", sallyPass, null, sallyId);
 
+        InterMineBag employees = sallyProfile.createBag("bag2", "Employee", "description of bag 2", classKeys);
         // employees and managers
         //    <bag name="sally_bag2" type="org.intermine.model.CEO">
         //        <bagElement type="org.intermine.model.CEO" id="1011"/>
@@ -144,22 +152,13 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
 
         CEO ceoEx = new CEO();
         ceoEx.setName("EmployeeB1");
-        fieldNames = new HashSet<String>();
-        fieldNames.add("name");
-        CEO ceoB1 = (CEO) os.getObjectByExample(ceoEx, fieldNames);
+        CEO ceoB1 = (CEO) os.getObjectByExample(ceoEx, Collections.singleton("name"));
 
-        InterMineBag objectBag = new InterMineBag("bag2", "Employee", "description",
-                new Date(), BagState.CURRENT, os, sallyId, uosw, classKeys);
-        objectBag.addIdToBag(ceoB1.getId(), "CEO");
+        employees.addIdToBag(ceoB1.getId(), "CEO");
 
         template = new ApiTemplate("template", "ttitle", "tcomment",
                                      new PathQuery(Model.getInstanceByName("testmodel")));
-        sallyProfile = new Profile(pm, sallyName, sallyId, sallyPass,
-                  Collections.EMPTY_MAP, Collections.EMPTY_MAP, Collections.EMPTY_MAP, true, false);
-        pm.createProfile(sallyProfile);
         sallyProfile.saveQuery("query1", sq);
-        sallyProfile.saveBag("sally_bag1", objectBag);
-
         sallyProfile.saveTemplate("template", template);
 
         TagManager tagManager = im.getTagManager();
@@ -175,30 +174,24 @@ public class ProfileManagerBindingTest extends InterMineAPITestCase
         Group bobsGroup = sbm.createGroup(bobProfile, "bobs-group", "A group for bob and his friends");
         sbm.addUserToGroup(bobsGroup, sallyProfile);
         sbm.shareBagWithGroup(bobProfile, "bag1", bobsGroup);
+        sbm.shareBagWithUser(employees, "bob");
     }
     
     public void testMarshal() throws Exception {
-        XMLUnit.setIgnoreWhitespace(true);
-        XMLUnit.setIgnoreComments(true);
-        XMLUnit.setIgnoreAttributeOrder(true);
         StringWriter sw = new StringWriter();
         XMLOutputFactory factory = XMLOutputFactory.newInstance();
 
-        try {
-            XMLStreamWriter writer = factory.createXMLStreamWriter(sw);
-            writer.writeStartElement("userprofiles");
-            ProfileBinding.marshal(bobProfile, pm, writer);
-            ProfileBinding.marshal(sallyProfile, pm, writer);
-            writer.writeEndElement();
-        } catch (XMLStreamException e) {
-            throw new RuntimeException(e);
-        }
+        XMLStreamWriter writer = factory.createXMLStreamWriter(sw);
+        ProfileManagerBinding.marshal(pm, writer);
 
         InputStream is = getClass().getClassLoader().getResourceAsStream("ProfileManagerBindingTest.xml");
 
         String control = IOUtils.toString(is), test = sw.toString();
-        Diff diff = new Diff(control, test);
-        assertTrue("XML is identical " + diff.toString(), diff.identical());
+        System.out.println("---- SERIALISED USERPROFILES ----");
+        System.out.println(test);
+        System.out.println("---- END SERIALISED USERPROFILES ----");
+
+        XMLAssert.assertXMLEqual(control, test);
     }
 
     public void testUnmarshal() throws Exception {
