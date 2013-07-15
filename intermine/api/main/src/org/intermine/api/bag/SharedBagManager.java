@@ -511,7 +511,7 @@ public class SharedBagManager
      * @throws UserNotFoundException if the user does't exist
      * @throws BagDoesNotExistException if the bag does't exist
      */
-    public void shareBagWithUser(String bagName, String dateCreated, String userName)
+    private void shareBagWithUser(String bagName, String dateCreated, String userName)
         throws UserNotFoundException, BagDoesNotExistException {
         final UserProfile sharedWith = profileManager.getUserProfile(userName);
         if (sharedWith == null) {
