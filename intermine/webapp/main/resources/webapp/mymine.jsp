@@ -70,6 +70,12 @@
     <c:when test="${subtabs[subtabName]  =='labels'}">
       <tiles:insert name="viewLabels.jsp" />
     </c:when>
+
+    <%-- groups --%>
+    <c:when test="${subtabs[subtabName] =='groups'}">
+      <tiles:insert name="userGroups.jsp" />
+    </c:when>
+
   </c:choose>
 
   <%-- tag actions for super user --%>
