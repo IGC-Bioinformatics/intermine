@@ -1,0 +1,11 @@
+.group-details {
+    display: inline-block;
+    width: 100%;
+    padding: 0.2em;
+    border: 1px solid #aaa;
+}
+
+.group-details .members, .group-details .lists {
+    float: left;
+    width: 50%;
+}
