@@ -297,7 +297,7 @@ class ProfileManagerHandler extends DefaultHandler
                         for (Map<String, String> sharedBag : sharedBags) {
                             bagName = sharedBag.get("name");
                             dateCreated = sharedBag.get("dateCreated");
-                            sharedBagManager.shareBagWithUser(bagName, dateCreated, user);
+                            //sharedBagManager.shareBagWithUser(bagName, dateCreated, user);
                         }
                     }
                 }

@@ -144,24 +144,25 @@ public final class ProfileBinding
 
             writer.writeCharacters("\n");
 
-            //shared bags
-            SharedBagBinding.marshal(profile, writer);
-
             //queries
             writer.writeStartElement("queries");
             if (writeQueries) {
                 for (SavedQuery query : profile.getSavedQueries().values()) {
+                    writer.writeCharacters("\n  ");
                     SavedQueryBinding.marshal(query, writer, version);
                 }
             }
+            writer.writeCharacters("\n");
             writer.writeEndElement();
             writer.writeCharacters("\n");
             writer.writeStartElement("template-queries");
             if (writeTemplates) {
                 for (TemplateQuery template : profile.getSavedTemplates().values()) {
+                    writer.writeCharacters("\n  ");
                     TemplateQueryBinding.marshal(template, writer, version);
                 }
             }
+            writer.writeCharacters("\n");
             writer.writeEndElement();
             writer.writeCharacters("\n");
 
@@ -171,11 +172,15 @@ public final class ProfileBinding
                 new TagManagerFactory(profile.getProfileManager()).getTagManager();
             if (writeTags) {
                 List<Tag> tags = tagManager.getUserTags(profile.getUsername());
+                int tagC = 0;
                 for (Tag tag : tags) {
+                    tagC++;
                     if (!onlyConfigTags || tag.getTagName().indexOf(":") >= 0) {
+                        writer.writeCharacters("\n  ");
                         TagBinding.marshal(tag, writer);
                     }
                 }
+                if (tagC > 0) writer.writeCharacters("\n");
             }
             // end <tags>
             writer.writeEndElement();
