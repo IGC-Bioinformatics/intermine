@@ -63,7 +63,6 @@ public class TemplateQueryBinding extends PathQueryBinding
             throw new NullPointerException("writer must not be null");
         }
         try {
-            writer.writeCharacters("\n");
             writer.writeStartElement("template");
             writer.writeAttribute("name", template.getName());
             if (template.getTitle() != null) {
