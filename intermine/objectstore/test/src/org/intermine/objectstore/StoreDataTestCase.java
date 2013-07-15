@@ -35,7 +35,6 @@ public abstract class StoreDataTestCase extends SetupDataTestCase
                 storeDataWriter = ObjectStoreWriterFactory.getObjectStoreWriter("osw.unittest");
             }
             storeData();
-            //System.exit(1);
         } catch (Exception e) {
             if (storeDataWriter != null) {
                 storeDataWriter.close();
@@ -66,10 +65,7 @@ public abstract class StoreDataTestCase extends SetupDataTestCase
             //    o.setId(null);
             //}
             storeDataWriter.beginTransaction();
-            Iterator iter = data.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry entry = (Map.Entry) iter.next();
-                Object o = entry.getValue();
+            for (Object o: data.values()) {
                 storeDataWriter.store(o);
             }
             storeDataWriter.commitTransaction();
@@ -102,32 +98,24 @@ public abstract class StoreDataTestCase extends SetupDataTestCase
         }
         try {
             storeDataWriter.beginTransaction();
-            Iterator iter = data.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry entry = (Map.Entry) iter.next();
-                InterMineObject o = (InterMineObject) entry.getValue();
-                storeDataWriter.delete(o);
+            for (Object o: data.values()) {
+                storeDataWriter.delete((InterMineObject) o);
             }
             Query q = new Query();
             QueryClass qc = new QueryClass(InterMineObject.class);
             q.addFrom(qc);
             q.addToSelect(qc);
             SingletonResults dataToRemove = storeDataWriter.getObjectStore().executeSingleton(q);
-            iter = dataToRemove.iterator();
-            while (iter.hasNext()) {
-                InterMineObject toDelete = (InterMineObject) iter.next();
-                storeDataWriter.delete(toDelete);
+            for (Object o: dataToRemove) {
+                storeDataWriter.delete((InterMineObject) o);
             }
             storeDataWriter.commitTransaction();
         } catch (RuntimeException e) {
             storeDataWriter.abortTransaction();
             storeDataWriter.beginTransaction();
-            Iterator iter = data.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry entry = (Map.Entry) iter.next();
-                if (entry.getValue() instanceof InterMineObject) {
-                    InterMineObject o = (InterMineObject) entry.getValue();
-                    storeDataWriter.delete(o);
+            for (Object o: data.values()) {
+                if (o instanceof InterMineObject) {
+                    storeDataWriter.delete((InterMineObject) o);
                 }
             }
             storeDataWriter.commitTransaction();

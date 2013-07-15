@@ -335,9 +335,7 @@ public abstract class SetupDataTestCase extends ObjectStoreQueriesTestCase
 
     private static Map map(Collection c) throws Exception {
         Map returnData = new LinkedHashMap();
-        Iterator iter = c.iterator();
-        while(iter.hasNext()) {
-            Object o = iter.next();
+        for (Object o: c) {
             returnData.put(simpleObjectToName(o), o);
         }
         return returnData;
