@@ -616,10 +616,10 @@ public class Profile
         throws UnknownBagTypeException, ClassKeysNotFoundException, ObjectStoreException {
         ObjectStore os = manager.getProductionObjectStore();
         ObjectStoreWriter uosw = manager.getProfileObjectStoreWriter();
-        List<String> keyFielNames = ClassKeyHelper.getKeyFieldNames(
+        List<String> keyFieldNames = ClassKeyHelper.getKeyFieldNames(
                                     classKeys, type);
         InterMineBag bag = new InterMineBag(name, type, description, new Date(),
-                               BagState.CURRENT, os, userId, uosw, keyFielNames);
+                               BagState.CURRENT, os, userId, uosw, keyFieldNames);
         saveBag(name, bag);
         return bag;
     }
