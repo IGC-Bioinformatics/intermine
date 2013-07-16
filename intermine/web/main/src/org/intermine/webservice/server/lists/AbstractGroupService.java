@@ -111,6 +111,7 @@ public abstract class AbstractGroupService extends JSONService {
     }
 
     protected Map<String, Object> getBagInfo(InterMineBag bag) {
+        Profile requester = getPermission().getProfile();
         Map<String, Object> bagMap = new HashMap<String, Object>();
         bagMap.put("name", bag.getName());
         bagMap.put("type", bag.getType());
@@ -122,6 +123,7 @@ public abstract class AbstractGroupService extends JSONService {
         } catch (ObjectStoreException e) {
             bagMap.put("size", null);
         }
+        bagMap.put("authorized", requester.getUserId().equals(bag.getProfileId()));
         return bagMap;
     }
 
