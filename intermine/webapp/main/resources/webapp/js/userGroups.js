@@ -4,6 +4,9 @@
 
   userP = $SERVICE.whoami();
 
+  function elemer(tagName) { return function(content) { return $('<' + tagName + '>').append(content); } }
+  var td = elemer('td'), strong = elemer('strong'), em = elemer('em'), button = elemer('button'), a = elemer('a'), li = elemer('li'), span = elemer('span');
+
   presentMember = function(member, group, li) { return function(user) {
     if (member.name == user.username) {
       li.append("<em>you</em>")
@@ -70,6 +73,38 @@
     return list.name + " (" + list.size + " " + list.type + "s)";
   }
 
+
+  function addListItemHandler(lists, group) { return function(list) {
+    var link = a(span().text(bagLabel(list))).attr({href: bagLink(list)});
+    var item = li(link);
+    if (list.authorized) {
+      var deleter = button('Unshare');
+      item.prepend(deleter);
+      deleter.click(function(event) {
+        ignore(event);
+        $SERVICE.makeRequest("DELETE", "groups/" + group.uuid + "/lists", {name: list.name})
+                .then(getGroups, FailureNotification.notify);
+      });
+    }
+    lists.append(item);
+  }}
+
+  function addMemberItemHandler(members, group) { return function(member) {
+    var li = $('<li>');
+    userP.done(presentMember(member, group, li));
+    members.append(li);
+    userP.then(function(user) {
+      if (user.username == group.owner.username && user.username != member.username) {
+        var evicter = button("Remove").click(function(evt) {
+          ignore(evt);
+          $SERVICE.makeRequest("DELETE", "groups/" + group.uuid + "/members", {name: member.username})
+                  .then(getGroups, FailureNotification.notify);
+        });
+        li.prepend(evicter);
+      }
+    });
+  }}
+
   appendGroupDetails = function(tr) { return function(resp) {
     var group = resp.group;
     var detailsCell = tr.find('.details');
@@ -78,11 +113,7 @@
     var moreDetails = $('<div class="group-details"><div class="members"><h4>Members</h4><ul></ul><button class="add">Add member</button></div><div class="lists"><h4>Lists</h4><ul></ul><button class="add">Add list</button></div></div>');
     var members = moreDetails.find('.members ul');
     var lists =  moreDetails.find('.lists ul');
-    group.members.forEach(function(member) {
-      var li = $('<li>');
-      userP.done(presentMember(member, group, li));
-      members.append(li);
-    });
+    group.members.forEach(addMemberItemHandler(members, group));
     userP.then(function(user) {
       var memberAdder = moreDetails.find('.members button.add');
       if (user.username != group.owner.username) {
@@ -91,21 +122,7 @@
         memberAdder.click(openMemberSelectionDialogue(group));
       }
     });
-
-    var a = elemer('a'), li = elemer('li'), span = elemer('span');
-    group.lists.forEach(function(list) {
-      var link = a(span().text(bagLabel(list))).attr({href: bagLink(list)});
-      var item = li(link);
-      if (list.authorized) {
-        var deleter = button('Unshare');
-        item.append(deleter);
-        deleter.click(function(event) {
-          ignore(event);
-          $SERVICE.makeRequest("DELETE", "groups/" + group.uuid + "/lists", {name: list.name}).then(getGroups);
-        });
-      }
-      lists.append(item);
-    });
+    group.lists.forEach(addListItemHandler(lists, group));
     moreDetails.find('.lists button.add').click(selectAndAddListTo(group));
     var detailsRow = $('<tr><td colspan=4></td></tr>');
     detailsRow.find('td').append(moreDetails);
@@ -127,11 +144,6 @@
   deleteHandler = ungrouper("delete", 'All members and lists will be permanently removed.');
   leaveHandler = ungrouper("leave", 'You will lose access to all lists shared with this group', '/members');
 
-  function elemer(tagName) { return function(content) { return $('<' + tagName + '>').append(content); } }
-  var td = elemer('td');
-  var em = elemer('em');
-  var button = elemer('button');
-
   getGroups = function() {
     $SERVICE.get("groups").then(function(resp) {
       var $table = $('#groups tbody').empty();
@@ -146,7 +158,7 @@
             remover.click(isOwner ? deleteHandler(group) : leaveHandler(group));
           });
           tr.append(td(remover))
-            .append(td(group.name))
+            .append(td(strong(group.name)))
             .append(td(em(group.description)));
           var detailsCell = $('<td class="details">');
           tr.append(detailsCell);

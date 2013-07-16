@@ -1,16 +1,38 @@
 table#groups {
-    min-width: 80%;
+    min-width: 85%;
 }
 
 .group-details {
     background-color: #eff3f7;
     display: inline-block;
     width: 100%;
-    padding: 0.2em;
+    padding: 0.5em;
     border: 1px solid #aaa;
 }
 
 .group-details .members, .group-details .lists {
     float: left;
-    width: 50%;
+    width: 49%;
+    box-sizing: border-box;
+    padding: 0.5em;
 }
+
+.group-details .members {
+    border-right: 1px solid #ddd;
+}
+
+.group-details ul {
+    margin-bottom: 1em;
+}
+.group-details ul > li {
+    min-height: 2em;
+    margin-left: 0px;
+    list-style-type: none;
+    border-bottom: 1px solid #ddd;
+}
+.group-details ul > li > button {
+    float: right;
+    height: 90%;
+    margin: 0.2em 1.5em 0.2em 0;
+}
+
