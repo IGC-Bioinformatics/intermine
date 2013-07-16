@@ -10,10 +10,57 @@
     } else {
       li.text(member.name);
     }
-    if (member.name == group.owner) {
+    if (member.username == group.owner.username) {
       li.append(" (owner)");
     }
   }};
+
+  function ignore(evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+  }
+
+  function groupAddHandler(dialogue, input, group, pathInfo) { return function (evt) {
+      ignore(evt);
+      var name = input.val();
+      $SERVICE.post("groups/" + group.uuid + pathInfo, {name: name})
+        .then(getGroups)
+        .fail(FailureNotification.notify);
+      dialogue.hide();
+  }}
+
+  function dialogueCloser(dialogue) { return function (evt) {
+      evt.stopPropagation();
+      dialogue.hide();
+  }}
+
+  function selectAndAddListTo(group) { return function(evt) {
+    ignore(evt);
+    var form = $('<form><div><label>Choose a list:</label><select></select></div><button class="add">Add</button><button class="cancel">Cancel</button></form>');
+    var selector = form.find('select');
+    var option = elemer('option');
+    var dialogue = new Boxy(form, {modal: true, show: false});
+    form.submit(ignore);
+    $SERVICE.fetchLists().done(function(lists) {
+      lists.forEach(function(list) {
+        selector.append(option(list.name));
+      });
+    });
+    form.find('button.add').click(groupAddHandler(dialogue, selector, group, '/lists'));
+    form.find('button.cancel').click(dialogueCloser(dialogue));
+    dialogue.show();
+  }}
+
+  function openMemberSelectionDialogue(group) { return function(evt) {
+    ignore(evt);
+    var form = $('<form><div><label>Enter a member name:</label><input type="text" name="memberName"></div><button class="add">Add</button><button class="cancel">Cancel</button></form>');
+    var input = form.find('input');
+    var dialogue = new Boxy(form, {modal: true, show: false});
+    form.submit(ignore);
+    form.find('button.add').click(groupAddHandler(dialogue, input, group, '/members'));
+    form.find('button.cancel').click(dialogueCloser(dialogue));
+    dialogue.show();
+  }}
 
   appendGroupDetails = function(tr) { return function(resp) {
     var group = resp.group;
@@ -30,10 +77,20 @@
       userP.done(presentMember(member, group, li));
       members.append(li);
     });
+    userP.then(function(user) {
+      var memberAdder = moreDetails.find('.members button.add');
+      if (user.username != group.owner.username) {
+        memberAdder.remove();
+      } else {
+        memberAdder.click(openMemberSelectionDialogue(group));
+      }
+    });
+
     group.lists.forEach(function(list) {
       lists.append(
         $('<li>').text(list.name + " (" + list.size + " " + list.type + ")"));
     });
+    moreDetails.find('.lists button.add').click(selectAndAddListTo(group));
     var detailsRow = $('<tr><td colspan=4></td></tr>');
     detailsRow.find('td').append(moreDetails);
     tr.after(detailsRow);
@@ -46,13 +103,17 @@
   function ungrouper(action, consequence, pathInfo) { return function(group) { return function(evt) {
     evt.preventDefault();
     evt.stopPropagation();
-    Boxy.confirm("Do you really want to " + action + " the " + group.name + " group? " + consequence, function yesDoIt() {
+    Boxy.confirm("Do you really want to " + action + " '" + group.name + "'? " + consequence, function yesDoIt() {
       $SERVICE.makeRequest("DELETE", "groups/" + group.uuid + (pathInfo || '')).then(getGroups);
     });
   }}}
 
   deleteHandler = ungrouper("delete", 'All members and lists will be permanently removed.');
   leaveHandler = ungrouper("leave", 'You will lose access to all lists shared with this group', '/members');
+
+  function elemer(tagName) { return function(content) { return $('<' + tagName + '>').append(content); } }
+  var td = elemer('td');
+  var em = elemer('em');
 
   getGroups = function() {
     $SERVICE.get("groups").then(function(resp) {
@@ -63,13 +124,13 @@
           var tr = $('<tr>');
           var remover = $('<button>');
           userP.then(function(user) {
-            var isOwner = group.owner === user.username;
+            var isOwner = group.owner.username === user.username;
             remover.text(isOwner ? "Delete" : "Leave");
             remover.click(isOwner ? deleteHandler(group) : leaveHandler(group));
           });
-          tr.append($('<td>').append(remover))
-            .append('<td>' + group.name + '</td>')
-            .append('<td>' + group.description + '</td>');
+          tr.append(td(remover))
+            .append(td(group.name))
+            .append(td(em(group.description)));
           var detailsCell = $('<td class="details">');
           tr.append(detailsCell);
           $SERVICE.get("groups/" + group.uuid).then(appendGroupDetails(tr));
