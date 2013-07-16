@@ -96,9 +96,9 @@ public class GroupDeletionService extends AbstractGroupService {
             throw new UnauthorizedException();
         }
         // If no name is provided, remove the requester.
-        String memberName = getOptionalParameter("name", user.getName());
+        String memberName = getOptionalParameter("name", user.getUsername());
         Profile oldMember = im.getProfileManager().getProfile(memberName);
-        if (oldMember == null) throw new BadRequestException("Unknown member: " + oldMember);
+        if (oldMember == null) throw new BadRequestException("Unknown member: " + memberName);
         Group g = getGroup();
         SharedBagManager sbm = getSharedBagManager();
         // Owners can remove anyone, normal members can only remove themselves.

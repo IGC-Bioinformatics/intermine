@@ -128,6 +128,8 @@ public abstract class AbstractGroupService extends JSONService {
     protected Map<String, Object> getMemberInfo(Profile member) {
         Map<String, Object> memberMap = new HashMap<String, Object>();
         memberMap.put("name", member.getName());
+        memberMap.put("username", member.getUsername());
+        memberMap.put("email", member.getEmailAddress());
         return memberMap;
     }
 
