@@ -64,7 +64,12 @@ public class Group implements ToMap {
         retval.put("description", description);
         retval.put("uuid", uuid);
         if (pm != null) {
-            retval.put("owner", getOwner().getName());
+            Map<String, Object> ownerData = new HashMap<String, Object>();
+            Profile owner = getOwner();
+            ownerData.put("name", owner.getName());
+            ownerData.put("username", owner.getUsername());
+            ownerData.put("email", owner.getEmailAddress());
+            retval.put("owner", ownerData);
         }
         return retval;
     }
