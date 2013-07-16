@@ -52,6 +52,22 @@
         new Notification({message: message}).render();
     }
 
+    FailureNotification.UNKNOWN_ERROR = "Unknown error";
+
+    var parseError = function(error) {
+      if (!error) return FailureNotification.UNKNOWN_ERROR;
+      if (typeof error === 'string') return error;
+      if (error.responseText) {
+        try {
+          return JSON.parse(error.responseText).error;
+        } catch (ex) {
+          return error;
+        }
+      } else {
+        return error;
+      }
+    };
+
     /**
      * Static factory method for handling errors.
      * In addition to showing the user a notification, the message
@@ -59,13 +75,11 @@
      * @param {?string} error The message to show to the user.
      */
     FailureNotification.notify = function(error) {
+        var message = parseError(error);
         if (console) {
-            (console.error || console.log).apply(console, arguments);
+            (console.error || console.log).call(console, message, arguments);
         }
-        if (error == null) {
-            error = "Unknown error";
-        }
-        new FailureNotification({message: error}).render();
+        new FailureNotification({message: message}).render();
     };
 	
 	this.Notification = Notification;
