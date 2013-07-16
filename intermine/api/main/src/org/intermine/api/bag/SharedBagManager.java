@@ -1054,6 +1054,9 @@ public class SharedBagManager
         } catch (SQLException e) {
             throw new RuntimeException("Error adding member to group", e);
         }
+        for (InterMineBag bag: getBagsInGroup(group)) {
+            informProfileOfChange(newMember.getUsername(), new CreationEvent(bag));
+        }
     }
 
     private static final String REMOVE_USERS_BAGS_FROM_GROUP =
@@ -1163,7 +1166,7 @@ public class SharedBagManager
         }
         for (Profile member: getGroupMembers(group)) {
             if (member.getUserId() != owner.getUserId()) {
-                informProfileOfChange(member.getName(), new CreationEvent(bag));
+                informProfileOfChange(member.getUsername(), new CreationEvent(bag));
             }
         }
     }
