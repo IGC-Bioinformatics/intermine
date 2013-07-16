@@ -575,11 +575,15 @@ public class SharedBagManager
                 userProfile.getUsername(), userProfile.getId()), e);
         }
     }
-    
+
     private void informProfileOfChange(final String name, final ChangeEvent evt) {
         if (profileManager.isProfileCached(name)) {
-            profileManager.getProfile(name).getSearchRepository().receiveEvent(evt);
+            informProfileOfChange(profileManager.getProfile(name), evt);
         }
+    }
+
+    private void informProfileOfChange(final Profile profile, final ChangeEvent evt) {
+        profile.getSearchRepository().receiveEvent(evt);
     }
 
     private static final String UNSHARE_BAG_SQL = 
@@ -587,7 +591,7 @@ public class SharedBagManager
 
     private static final String UNSHARE_BAG_ERROR_MSG =
         "Error removing all shares of this bag: %s:%d";
-    
+
     /**
      * Delete the sharing between the bag and all the users sharing the bag.
      * Method used when a bag is deleted.
@@ -1105,6 +1109,9 @@ public class SharedBagManager
         } catch (SQLException e) {
             throw new RuntimeException(String.format("Could not remove user %s from group %s", oldMember.getName(), group.getName()));
         }
+        for (InterMineBag bag: getBagsInGroup(group)) {
+            informProfileOfChange(oldMember, new DeletionEvent(bag));
+        }
     }
 
     public boolean isBagSharedWithGroup(final Profile owner, final String bagName, final Group group) throws BagNotFound, BadGroupPermission {
@@ -1166,7 +1173,7 @@ public class SharedBagManager
         }
         for (Profile member: getGroupMembers(group)) {
             if (member.getUserId() != owner.getUserId()) {
-                informProfileOfChange(member.getUsername(), new CreationEvent(bag));
+                informProfileOfChange(member, new CreationEvent(bag));
             }
         }
     }
@@ -1201,7 +1208,7 @@ public class SharedBagManager
         }
         for (Profile member: getGroupMembers(group)) {
             if (member.getUserId() != owner.getUserId()) {
-                informProfileOfChange(member.getName(), new DeletionEvent(bag));
+                informProfileOfChange(member, new DeletionEvent(bag));
             }
         }
     }
