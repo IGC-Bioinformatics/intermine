@@ -215,6 +215,7 @@ ul#loginbar a {
     padding: 0px;
 }
 
+
 /* =SUBMENU
  --------------------------*/
 div#quicksearch {
@@ -1679,3 +1680,17 @@ div.bottom-footer ul.footer-links li { display:block; float:left; margin:0; }
 div.bottom-footer ul.footer-links li:not(:last-child) { margin-right:5px; }
 div.bottom-footer ul.footer-links li:not(:last-child):after { content:'|'; color:#E2E1E6; display:block; float:right; margin-left:5px; }
 div.bottom-footer ul.footer-links li a { text-decoration:none; text-transform:capitalize; }
+
+@media screen and (max-width: 1024px) {
+    ul#loginbar {
+        float: left;
+    }
+    #submenudiv {
+        width: 950px;
+    }
+}
+@media screen and (max-width: 900px) {
+    #submenudiv {
+        width: 805px;
+    }
+}

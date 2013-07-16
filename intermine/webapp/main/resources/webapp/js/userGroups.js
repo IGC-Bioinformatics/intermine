@@ -43,8 +43,9 @@
     form.submit(ignore);
     $SERVICE.fetchLists().done(function(lists) {
       lists.forEach(function(list) {
-        selector.append(option(list.name));
+        if (list.authorized) selector.append(option(list.name));
       });
+      dialogue.center('x');
     });
     form.find('button.add').click(groupAddHandler(dialogue, selector, group, '/lists'));
     form.find('button.cancel').click(dialogueCloser(dialogue));
@@ -62,13 +63,18 @@
     dialogue.show();
   }}
 
+  function bagLink(list) {
+    return $SERVICE.root.replace(/service\/$/,'') + "bagDetails.do?name=" + escape(list.name);
+  }
+  function bagLabel(list) {
+    return list.name + " (" + list.size + " " + list.type + "s)";
+  }
+
   appendGroupDetails = function(tr) { return function(resp) {
     var group = resp.group;
     var detailsCell = tr.find('.details');
-    console.log(group);
-    detailsCell
-      .append(group.members.length + " members, ")
-      .append(group.lists.length + " lists");
+    var a = elemer('a');
+    detailsCell.append(a(group.members.length + " members, " + group.lists.length + " lists").attr({href: '#'}));
     var moreDetails = $('<div class="group-details"><div class="members"><h4>Members</h4><ul></ul><button class="add">Add member</button></div><div class="lists"><h4>Lists</h4><ul></ul><button class="add">Add list</button></div></div>');
     var members = moreDetails.find('.members ul');
     var lists =  moreDetails.find('.lists ul');
@@ -86,9 +92,19 @@
       }
     });
 
+    var a = elemer('a'), li = elemer('li'), span = elemer('span');
     group.lists.forEach(function(list) {
-      lists.append(
-        $('<li>').text(list.name + " (" + list.size + " " + list.type + ")"));
+      var link = a(span().text(bagLabel(list))).attr({href: bagLink(list)});
+      var item = li(link);
+      if (list.authorized) {
+        var deleter = button('Unshare');
+        item.append(deleter);
+        deleter.click(function(event) {
+          ignore(event);
+          $SERVICE.makeRequest("DELETE", "groups/" + group.uuid + "/lists", {name: list.name}).then(getGroups);
+        });
+      }
+      lists.append(item);
     });
     moreDetails.find('.lists button.add').click(selectAndAddListTo(group));
     var detailsRow = $('<tr><td colspan=4></td></tr>');
@@ -114,6 +130,7 @@
   function elemer(tagName) { return function(content) { return $('<' + tagName + '>').append(content); } }
   var td = elemer('td');
   var em = elemer('em');
+  var button = elemer('button');
 
   getGroups = function() {
     $SERVICE.get("groups").then(function(resp) {

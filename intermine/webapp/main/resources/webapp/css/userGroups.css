@@ -1,4 +1,9 @@
+table#groups {
+    min-width: 80%;
+}
+
 .group-details {
+    background-color: #eff3f7;
     display: inline-block;
     width: 100%;
     padding: 0.2em;
