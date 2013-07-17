@@ -8,10 +8,10 @@
   var td = elemer('td'), strong = elemer('strong'), em = elemer('em'), button = elemer('button'), a = elemer('a'), li = elemer('li'), span = elemer('span');
 
   presentMember = function(member, group, li) { return function(user) {
-    if (member.name == user.username) {
+    if (member.username == user.username) {
       li.append("<em>you</em>")
     } else {
-      li.text(member.name);
+      li.text(member.username);
     }
     if (member.username == group.owner.username) {
       li.append(" (owner)");
