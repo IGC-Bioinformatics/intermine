@@ -45,7 +45,6 @@ public class FlyBaseCDSFastaLoaderTask extends FlyBaseFeatureFastaLoaderTask
         Annotation annotation = bioJavaSequence.getAnnotation();
         String header = (String) annotation.getProperty("description");
         String mrnaIdentifier = getMRNAIdentifier(header);
-
         ObjectStore os = getIntegrationWriter().getObjectStore();
         Model model = os.getModel();
         if (model.hasClassDescriptor(model.getPackageName() + ".CDS")) {

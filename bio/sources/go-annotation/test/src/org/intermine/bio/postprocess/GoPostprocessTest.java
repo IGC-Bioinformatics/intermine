@@ -149,7 +149,7 @@ public class GoPostprocessTest extends XMLTestCase {
         GOEvidenceCode code = (GOEvidenceCode) DynamicUtil.createObject(Collections.singleton(GOEvidenceCode.class));
         evidence.setCode(code);
         Publication pub = (Publication) DynamicUtil.createObject(Collections.singleton(Publication.class));
-        evidence.addPublications(pub);
+        evidence.setPublication(pub);
         go.setEvidence(Collections.singleton(evidence));
         return new ArrayList(Arrays.asList(new Object[] {go, ontologyTerm, evidence, code, pub}));
     }
@@ -171,7 +171,7 @@ public class GoPostprocessTest extends XMLTestCase {
         GOEvidenceCode code1 = (GOEvidenceCode) DynamicUtil.createObject(Collections.singleton(GOEvidenceCode.class));
         evidence1.setCode(code1);
         Publication pub1 = (Publication) DynamicUtil.createObject(Collections.singleton(Publication.class));
-        evidence1.addPublications(pub1);
+        evidence1.setPublication(pub1);
         go1.setEvidence(Collections.singleton(evidence1));
 
         GOAnnotation go2 = (GOAnnotation) DynamicUtil.createObject(Collections.singleton(GOAnnotation.class));
@@ -181,7 +181,7 @@ public class GoPostprocessTest extends XMLTestCase {
         GOEvidenceCode code2 = (GOEvidenceCode) DynamicUtil.createObject(Collections.singleton(GOEvidenceCode.class));
         evidence2.setCode(code2);
         Publication pub2 = (Publication) DynamicUtil.createObject(Collections.singleton(Publication.class));
-        evidence2.addPublications(pub2);
+        evidence2.setPublication(pub2);
         go2.setEvidence(Collections.singleton(evidence2));
 
 
