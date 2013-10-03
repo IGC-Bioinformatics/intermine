@@ -16,15 +16,14 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections.keyvalue.MultiKey;
 import org.apache.log4j.Logger;
 import org.intermine.bio.util.Constants;
 import org.intermine.model.bio.GOAnnotation;
 import org.intermine.model.bio.GOEvidence;
-import org.intermine.model.bio.GOEvidenceCode;
 import org.intermine.model.bio.Gene;
 import org.intermine.model.bio.OntologyTerm;
 import org.intermine.model.bio.Protein;
-import org.intermine.model.bio.Publication;
 import org.intermine.objectstore.ObjectStore;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.objectstore.ObjectStoreWriter;
@@ -52,7 +51,6 @@ public class GoPostprocess extends PostProcessor
 
 
     /**
-     * Create a new UpdateOrthologes object from an ObjectStoreWriter
      * @param osw writer on genomic ObjectStore
      */
     public GoPostprocess(ObjectStoreWriter osw) {
@@ -76,7 +74,7 @@ public class GoPostprocess extends PostProcessor
 
         int count = 0;
         Gene lastGene = null;
-        Map<OntologyTerm, GOAnnotation> annotations = new HashMap<OntologyTerm, GOAnnotation>();
+        Map<MultiKey, GOAnnotation> annotations = new HashMap<MultiKey, GOAnnotation>();
 
         while (resIter.hasNext()) {
             ResultsRow<?> rr = (ResultsRow<?>) resIter.next();
@@ -94,27 +92,33 @@ public class GoPostprocess extends PostProcessor
                 osw.store(lastGene);
 
                 lastGene = thisGene;
-                annotations = new HashMap<OntologyTerm, GOAnnotation>();
+                annotations = new HashMap<MultiKey, GOAnnotation>();
             }
 
+            String qualifier = thisAnnotation.getQualifier();
             OntologyTerm term = thisAnnotation.getOntologyTerm();
             Set<GOEvidence> evidence = thisAnnotation.getEvidence();
 
-            GOAnnotation tempAnnotation;
-            try {
-                tempAnnotation = PostProcessUtil.copyInterMineObject(thisAnnotation);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+            MultiKey key = new MultiKey(thisGene, term, qualifier);
+            GOAnnotation alreadySeenAnnotation = annotations.get(key);
+            
+            // we've seen this gene GO term pair before, just merge new evidence
+            if (alreadySeenAnnotation != null) {
+            	evidence.addAll(alreadySeenAnnotation.getEvidence());
+            	alreadySeenAnnotation.setEvidence(evidence);
+            // new annotation
+            } else {
+            	GOAnnotation tempAnnotation = null;
+                try {
+                	tempAnnotation = PostProcessUtil.copyInterMineObject(thisAnnotation);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+                tempAnnotation.setSubject(thisGene);
+            	annotations.put(key, tempAnnotation);
+                lastGene = thisGene;
+                count++;
             }
-
-            if (hasDupes(annotations, term, evidence, tempAnnotation)) {
-                // if a dupe, merge with already created object instead of creating new
-                continue;
-            }
-            tempAnnotation.setSubject(thisGene);
-
-            lastGene = thisGene;
-            count++;
         }
 
         if (lastGene != null) {
@@ -132,51 +136,6 @@ public class GoPostprocess extends PostProcessor
         osw.commitTransaction();
     }
 
-    private boolean hasDupes(Map<OntologyTerm, GOAnnotation> annotations, OntologyTerm term,
-            Set<GOEvidence> evidence, GOAnnotation newAnnotation) {
-        boolean isDupe = false;
-        GOAnnotation alreadySeenAnnotation = annotations.get(term);
-        if (alreadySeenAnnotation != null) {
-            isDupe = true;
-            mergeEvidence(evidence, alreadySeenAnnotation);
-        } else {
-            annotations.put(term, newAnnotation);
-        }
-        return isDupe;
-    }
-
-    // we've seen this term, merge instead of storing new object
-    private void mergeEvidence(Set<GOEvidence> evidence, GOAnnotation alreadySeenAnnotation) {
-        for (GOEvidence g : evidence) {
-            GOEvidenceCode c = g.getCode();
-            Set<Publication> pubs = g.getPublications();
-            boolean foundMatch = false;
-            for (GOEvidence alreadySeenEvidence : alreadySeenAnnotation.getEvidence()) {
-                GOEvidenceCode alreadySeenCode = alreadySeenEvidence.getCode();
-                Set<Publication> alreadySeenPubs = alreadySeenEvidence.getPublications();
-                // we've already seen this evidence code, just merge pubs
-                if (c.equals(alreadySeenCode)) {
-                    foundMatch = true;
-                    alreadySeenPubs = mergePubs(alreadySeenPubs, pubs);
-                }
-            }
-            if (!foundMatch) {
-                // we don't have this evidence code
-                alreadySeenAnnotation.addEvidence(g);
-            }
-        }
-    }
-
-    private Set<Publication> mergePubs(Set<Publication> alreadySeenPubs, Set<Publication> pubs) {
-        Set<Publication> newPubs = new HashSet<Publication>();
-        if (alreadySeenPubs != null) {
-            newPubs.addAll(alreadySeenPubs);
-        }
-        if (pubs != null) {
-            newPubs.addAll(pubs);
-        }
-        return newPubs;
-    }
 
     /**
      * Query Gene->Protein->Annotation->GOTerm and return an iterator over the Gene,

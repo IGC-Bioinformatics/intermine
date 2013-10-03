@@ -82,7 +82,7 @@ public class GoConverterTest extends ItemsTestCase
         converter.close();
 
         // uncomment to write a new target items file
-        //writeItemsFile(writer.getItems(), "go-tgt-items.xml");
+        writeItemsFile(writer.getItems(), "go-tgt-items.xml");
 
         assertEquals(readItemSet("GoConverterOboTest_tgt.xml"), writer.getItems());
     }
@@ -98,7 +98,7 @@ public class GoConverterTest extends ItemsTestCase
         converter.initialiseMapsForFile();
         assertEquals(expected, new HashSet<String>(converter.createWithObjects(
                 "FLYBASE:Grip84; FB:FBgn0026430, FLYBASE:l(1)dd4; FB:FBgn0001612",
-                organism, "FlyBase", "FlyBase")));
+                "7227", "FlyBase", "FlyBase")));
     }
 
 }
