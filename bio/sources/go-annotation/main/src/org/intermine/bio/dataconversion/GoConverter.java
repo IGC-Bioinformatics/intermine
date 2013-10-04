@@ -241,6 +241,7 @@ public class GoConverter extends BioFileConverter
                 }
 
                 String annotationRefId = getAnnotation(key, productIdentifier, type,
+
                 		termRefId, taxonId, qualifier, dataSource, dataSourceCode);
 
                 evidence.setReference("goAnnotation", annotationRefId.toString());
