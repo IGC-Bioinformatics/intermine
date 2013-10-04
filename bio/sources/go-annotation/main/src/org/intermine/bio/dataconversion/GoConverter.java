@@ -213,11 +213,11 @@ public class GoConverter extends BioFileConverter
 
             String dataSourceCode = array[14]; // e.g. GDB, where uniprot collect the data from
             String dataSource = array[0]; // e.g. UniProtKB, where the goa file comes from
-            String productIdentifier = newProduct(productId, type, taxonId, dataSource, 
+            String geneRefId = newProduct(productId, type, taxonId, dataSource, 
             		dataSourceCode, true, null);
 
             // null if resolver could not resolve an identifier
-            if (productIdentifier != null) {
+            if (geneRefId != null) {
 
                 // null if no pub found
                 String pubRefId = newPublication(array[5]);
@@ -240,9 +240,8 @@ public class GoConverter extends BioFileConverter
                 	evidence.setReference("publication", pubRefId);
                 }
 
-                String annotationRefId = getAnnotation(key, productIdentifier, type,
-
-                		termRefId, taxonId, qualifier, dataSource, dataSourceCode);
+                String annotationRefId = getAnnotation(key, geneRefId, type, termRefId, 
+                		taxonId, qualifier, dataSource, dataSourceCode);
 
                 evidence.setReference("goAnnotation", annotationRefId.toString());
                 
@@ -259,7 +258,7 @@ public class GoConverter extends BioFileConverter
         storeProductCollections();
     }
 
-    private String getAnnotation(MultiKey key, String productIdentifier, String type,
+    private String getAnnotation(MultiKey key, String geneRefId, String type,
     		String termRefId, String taxonId, String qualifier, String dataSource, 
     		String dataSourceCode) throws ObjectStoreException {
         String goAnnotationRefId = annotations.get(key); 
@@ -267,15 +266,15 @@ public class GoConverter extends BioFileConverter
         	return goAnnotationRefId;
         }        
         Item goAnnotation = createItem(annotationClassName);
-        goAnnotation.setReference("subject", productIdentifier);
+        goAnnotation.setReference("subject", geneRefId);
         goAnnotation.setReference("ontologyTerm", termRefId);
         if (!StringUtils.isEmpty(qualifier)) {
             goAnnotation.setAttribute("qualifier", qualifier);
         }
         goAnnotation.addToCollection("dataSets", getDataset(dataSource, dataSourceCode));
         String refId = goAnnotation.getIdentifier();     
-        if ("gene".equals(type)) {
-            addProductCollection(productIdentifier, refId);
+        if ("gene".equalsIgnoreCase(type)) {
+            addProductCollection(geneRefId, refId);
         }
         store(goAnnotation);
         annotations.put(key, refId);
@@ -428,8 +427,7 @@ public class GoConverter extends BioFileConverter
         } else {
             includeOrganism = createOrganism;
         }
-        MultiKey key = new MultiKey(accession, type, taxonId, includeOrganism);
-
+        MultiKey key = new MultiKey(accession, type.toLowerCase(), taxonId, includeOrganism);
         // already stored gene to db
         if (productMap.containsKey(key)) {
             return productMap.get(key);
