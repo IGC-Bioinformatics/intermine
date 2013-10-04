@@ -61,7 +61,7 @@ public class GoConverter extends BioFileConverter
     private Set<String> dbRefs = new HashSet<String>();
 
     // maps renewed for each file
-    private Map<MultiKey, Integer> annotations = new LinkedHashMap<MultiKey, Integer>();
+    private Map<MultiKey, String> annotations = new LinkedHashMap<MultiKey, String>();
     private Map<Integer, List<String>> productCollectionsMap;
     private Map<String, Integer> storedProductIds;
 
@@ -240,7 +240,7 @@ public class GoConverter extends BioFileConverter
                 	evidence.setReference("publication", pubRefId);
                 }
 
-                Integer annotationRefId = getAnnotation(key, productIdentifier, type,
+                String annotationRefId = getAnnotation(key, productIdentifier, type,
                 		termRefId, taxonId, qualifier, dataSource, dataSourceCode);
 
                 evidence.setReference("goAnnotation", annotationRefId.toString());
@@ -258,24 +258,34 @@ public class GoConverter extends BioFileConverter
         storeProductCollections();
     }
 
-    private Integer getAnnotation(MultiKey key, String productIdentifier, String type,
+    private String getAnnotation(MultiKey key, String productIdentifier, String type,
     		String termRefId, String taxonId, String qualifier, String dataSource, 
     		String dataSourceCode) throws ObjectStoreException {
-        Integer goAnnotationRefId = annotations.get(key); 
+        String goAnnotationRefId = annotations.get(key); 
         if (goAnnotationRefId != null) {
         	return goAnnotationRefId;
         }        
-        Integer storedAnnotationId = createGoAnnotation(productIdentifier, type, termRefId, 
-        		qualifier, dataSource, dataSourceCode);
-        annotations.put(key, storedAnnotationId);
-        return storedAnnotationId;
+        Item goAnnotation = createItem(annotationClassName);
+        goAnnotation.setReference("subject", productIdentifier);
+        goAnnotation.setReference("ontologyTerm", termRefId);
+        if (!StringUtils.isEmpty(qualifier)) {
+            goAnnotation.setAttribute("qualifier", qualifier);
+        }
+        goAnnotation.addToCollection("dataSets", getDataset(dataSource, dataSourceCode));
+        String refId = goAnnotation.getIdentifier();     
+        if ("gene".equals(type)) {
+            addProductCollection(productIdentifier, refId);
+        }
+        store(goAnnotation);
+        annotations.put(key, refId);
+        return refId;
     }
     
     /**
      * Reset maps that don't need to retain their contents between files.
      */
     protected void initialiseMapsForFile() {
-        annotations = new LinkedHashMap<MultiKey, Integer>();
+        annotations = new LinkedHashMap<MultiKey, String>();
         productCollectionsMap = new LinkedHashMap<Integer, List<String>>();
         storedProductIds = new HashMap<String, Integer>();
     }
@@ -287,23 +297,6 @@ public class GoConverter extends BioFileConverter
             ReferenceList goAnnotation = new ReferenceList(termCollectionName, annotationIds);
             store(goAnnotation, storedProductId);
         }
-    }
-
-    private Integer createGoAnnotation(String productIdentifier, String productType,
-            String termIdentifier, String qualifier, String dataSource, String dataSourceCode) 
-            		throws ObjectStoreException {
-        Item goAnnotation = createItem(annotationClassName);
-        goAnnotation.setReference("subject", productIdentifier);
-        goAnnotation.setReference("ontologyTerm", termIdentifier);
-        if (!StringUtils.isEmpty(qualifier)) {
-            goAnnotation.setAttribute("qualifier", qualifier);
-        }
-        goAnnotation.addToCollection("dataSets", getDataset(dataSource, dataSourceCode));
-        if ("gene".equals(productType)) {
-            addProductCollection(productIdentifier, goAnnotation.getIdentifier());
-        }
-        Integer storedAnnotationId = store(goAnnotation);
-        return storedAnnotationId;
     }
 
     private void addProductCollection(String productIdentifier, String goAnnotationIdentifier) {
