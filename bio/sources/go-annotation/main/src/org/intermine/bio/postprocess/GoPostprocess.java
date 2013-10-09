@@ -80,7 +80,7 @@ public class GoPostprocess extends PostProcessor
             ResultsRow<?> rr = (ResultsRow<?>) resIter.next();
             Gene thisGene = (Gene) rr.get(0);
             GOAnnotation thisAnnotation = (GOAnnotation) rr.get(1);
-
+            
             // process last set of annotations if this is a new gene
             if (lastGene != null && !(lastGene.equals(thisGene))) {
                 for (GOAnnotation item : annotations.values()) {
@@ -101,7 +101,7 @@ public class GoPostprocess extends PostProcessor
 
             MultiKey key = new MultiKey(thisGene, term, qualifier);
             GOAnnotation alreadySeenAnnotation = annotations.get(key);
-            
+
             // we've seen this gene GO term pair before, just merge new evidence
             if (alreadySeenAnnotation != null) {
             	evidence.addAll(alreadySeenAnnotation.getEvidence());
@@ -135,7 +135,6 @@ public class GoPostprocess extends PostProcessor
                 + " - took " + (System.currentTimeMillis() - startTime) + " ms.");
         osw.commitTransaction();
     }
-
 
     /**
      * Query Gene->Protein->Annotation->GOTerm and return an iterator over the Gene,

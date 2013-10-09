@@ -61,7 +61,8 @@ public class GoConverter extends BioFileConverter
     private Set<String> dbRefs = new HashSet<String>();
 
     // maps renewed for each file
-    private Map<MultiKey, String> annotations = new LinkedHashMap<MultiKey, String>();
+    private Map<MultiKey, AnnotationHolder> annotations = new LinkedHashMap<MultiKey, 
+    		AnnotationHolder>();
     private Map<Integer, List<String>> productCollectionsMap;
     private Map<String, Integer> storedProductIds;
 
@@ -225,45 +226,52 @@ public class GoConverter extends BioFileConverter
                 // GO term
                 String termRefId = getGOTerm(goId, dataSource, dataSourceCode);
                 
-                // evidence code
-                String evidenceCodeRefId = getEvidenceCode(evidenceCode);
+                // create and store annotation
+                AnnotationHolder holder = createAnnotation(key, geneRefId, type, termRefId, taxonId, 
+                		qualifier, dataSource, dataSourceCode);
                 
-                Item evidence = createItem("GOEvidence");                
-                if (StringUtils.isNotEmpty(withText)) {
-                	evidence.setAttribute("withText", withText);
-                }
-                if (StringUtils.isNotEmpty(extensionText)) {
-                	evidence.setAttribute("annotationExtension", extensionText);
-                }
-                evidence.setReference("code", evidenceCodeRefId);
-                if (StringUtils.isNotEmpty(pubRefId)) {
-                	evidence.setReference("publication", pubRefId);
-                }
-
-                String annotationRefId = getAnnotation(key, geneRefId, type, termRefId, 
-                		taxonId, qualifier, dataSource, dataSourceCode);
-
-                evidence.setReference("goAnnotation", annotationRefId.toString());
+                // create evidence 
+                String evidenceRefId = createEvidence(pubRefId, evidenceCode, extensionText, 
+                		withText, taxonId, dataSource, dataSourceCode);
                 
-                List<String> withObjects =  createWithObjects(withText, taxonId, dataSource, 
-                		dataSourceCode);
-                
-                if (withObjects != null && !withObjects.isEmpty()) {
-                	evidence.setCollection("with", withObjects);
-                }
-                
-                store(evidence);
+                // add evidence for storing later
+                holder.addEvidence(evidenceRefId);
             }
         }
         storeProductCollections();
+        storeEvidence();
     }
 
-    private String getAnnotation(MultiKey key, String geneRefId, String type,
+    private String createEvidence(String pubRefId, String evidenceCode, String extensionText, 
+    		String withText, String taxonId, String dataSource, String dataSourceCode) 
+    				throws ObjectStoreException {
+        Item evidence = createItem("GOEvidence");                
+        if (StringUtils.isNotEmpty(withText)) {
+        	evidence.setAttribute("withText", withText);
+        }
+        if (StringUtils.isNotEmpty(extensionText)) {
+        	evidence.setAttribute("annotationExtension", extensionText);
+        }
+        evidence.setReference("code", getEvidenceCode(evidenceCode));
+        if (StringUtils.isNotEmpty(pubRefId)) {
+        	evidence.setReference("publication", pubRefId);
+        }
+        List<String> withObjects =  createWithObjects(withText, taxonId, dataSource, 
+        		dataSourceCode);
+        if (withObjects != null && !withObjects.isEmpty()) {
+        	evidence.setCollection("with", withObjects);
+        }
+        store(evidence);
+        return evidence.getIdentifier();
+    }
+    
+    private AnnotationHolder createAnnotation(MultiKey key, String geneRefId, String type,
     		String termRefId, String taxonId, String qualifier, String dataSource, 
     		String dataSourceCode) throws ObjectStoreException {
-        String goAnnotationRefId = annotations.get(key); 
-        if (goAnnotationRefId != null) {
-        	return goAnnotationRefId;
+        AnnotationHolder holder = annotations.get(key);
+        
+        if (holder != null) {
+        	return holder;
         }        
         Item goAnnotation = createItem(annotationClassName);
         goAnnotation.setReference("subject", geneRefId);
@@ -276,16 +284,18 @@ public class GoConverter extends BioFileConverter
         if ("gene".equalsIgnoreCase(type)) {
             addProductCollection(geneRefId, refId);
         }
-        store(goAnnotation);
-        annotations.put(key, refId);
-        return refId;
+        
+        Integer storedId = store(goAnnotation);
+        holder = new AnnotationHolder(refId, storedId);
+        annotations.put(key, holder);
+        return holder;
     }
     
     /**
      * Reset maps that don't need to retain their contents between files.
      */
     protected void initialiseMapsForFile() {
-        annotations = new LinkedHashMap<MultiKey, String>();
+        annotations = new LinkedHashMap<MultiKey, AnnotationHolder>();
         productCollectionsMap = new LinkedHashMap<Integer, List<String>>();
         storedProductIds = new HashMap<String, Integer>();
     }
@@ -296,6 +306,15 @@ public class GoConverter extends BioFileConverter
             List<String> annotationIds = entry.getValue();
             ReferenceList goAnnotation = new ReferenceList(termCollectionName, annotationIds);
             store(goAnnotation, storedProductId);
+        }
+    }
+    
+    private void storeEvidence() throws ObjectStoreException {
+        for (AnnotationHolder holder : annotations.values()) {
+            Integer storedAnnotation = holder.getStoredId();
+            List<String> evidenceIds = holder.getEvidence();
+            ReferenceList evidence = new ReferenceList("evidence", evidenceIds);
+            store(evidence, storedAnnotation);
         }
     }
 
@@ -614,13 +633,40 @@ public class GoConverter extends BioFileConverter
     }
 
     /**
+     * Class to hold the reference IDs for the annotation. Just so we don't need 2 maps 
+     */
+    private class AnnotationHolder {
+    	private String refId;
+    	private Integer storedId;
+    	private List<String> evidence;
+    	    	
+    	protected AnnotationHolder(String refId, Integer storedId) {
+			this.refId = refId;
+			this.storedId = storedId;
+			evidence = new ArrayList<String>();
+		}
+
+		protected Integer getStoredId() {
+			return storedId;
+		}
+		
+		protected void addEvidence(String refId) {
+			evidence.add(refId);
+		}
+		
+		protected List<String> getEvidence() {
+			return evidence;
+		}
+    }
+    
+    /**
      * Class to hold the config info for each taxonId.
      */
     private class Config
     {
-        protected String annotationType;
-        protected String identifier;
-        protected String readColumn;
+    	private String annotationType;
+    	private String identifier;
+    	private String readColumn;
 
         /**
          * Constructor.
