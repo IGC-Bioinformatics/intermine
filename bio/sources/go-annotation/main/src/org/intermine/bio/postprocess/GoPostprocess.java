@@ -104,8 +104,10 @@ public class GoPostprocess extends PostProcessor
 
             // we've seen this gene GO term pair before, just merge new evidence
             if (alreadySeenAnnotation != null) {
-            	evidence.addAll(alreadySeenAnnotation.getEvidence());
-            	alreadySeenAnnotation.setEvidence(evidence);
+                for (GOEvidence g : evidence) {
+                	alreadySeenAnnotation.addEvidence(g);
+                }
+                
             // new annotation
             } else {
             	GOAnnotation tempAnnotation = null;
