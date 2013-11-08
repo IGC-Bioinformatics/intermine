@@ -28,10 +28,22 @@ import org.apache.log4j.Logger;
 
 public final class ObjectStoreWriterFactory
 {
-    private ObjectStoreWriterFactory() {
+    private String alias;
+
+    public ObjectStoreWriterFactory(String alias) {
+        this.alias = alias;
     }
 
     private static final Logger LOG = Logger.getLogger(ObjectStoreWriterFactory.class);
+
+    /**
+     * Return an ObjectStoreWriter configured using properties file
+     * @return instance of a concrete ObjectStoreWriter according to property
+     * @throws ObjectStoreException if anything goes wrong
+     */
+    public ObjectStoreWriter getObjectStoreWriter() throws ObjectStoreException {
+        return getObjectStoreWriter(alias);
+    }
 
     /**
      * Return an ObjectStoreWriter configured using properties file
@@ -39,7 +51,6 @@ public final class ObjectStoreWriterFactory
      * @return instance of a concrete ObjectStoreWriter according to property
      * @throws ObjectStoreException if anything goes wrong
      */
-
     public static ObjectStoreWriter getObjectStoreWriter(String alias)
         throws ObjectStoreException {
         if (alias == null) {

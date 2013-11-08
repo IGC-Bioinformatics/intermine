@@ -49,6 +49,7 @@ public class PostProcessOperationsTask extends DynamicAttributeTask
     private static final Logger LOGGER = Logger.getLogger(PostProcessOperationsTask.class);
 
     protected String operation, objectStoreWriter, ensemblDb, organisms = null;
+    protected boolean parallel; // Run task in parallel if possible.
     protected File outputFile;
     protected ObjectStoreWriter osw;
 
@@ -68,6 +69,14 @@ public class PostProcessOperationsTask extends DynamicAttributeTask
      */
     public void setObjectStoreWriter(String objectStoreWriter) {
         this.objectStoreWriter = objectStoreWriter;
+    }
+
+    public void setParallel(String parallel) {
+        this.parallel = Boolean.parseBoolean(parallel);
+    }
+
+    public boolean getParallel() {
+        return parallel;
     }
 
     /**
@@ -128,22 +137,14 @@ public class PostProcessOperationsTask extends DynamicAttributeTask
                 LOGGER.info("Starting CreateReferences.createUtrRefs()");
                 cr.createUtrRefs();
             } else if ("transfer-sequences".equals(operation)) {
-                TransferSequences ts = new TransferSequences(getObjectStoreWriter());
-                ts = new TransferSequences(getObjectStoreWriter());
-                LOGGER.info("Starting TransferSequences.transferToLocatedSequenceFeatures()");
-                ts.transferToLocatedSequenceFeatures();
-
-                ts = new TransferSequences(getObjectStoreWriter());
-                LOGGER.info("Starting TransferSequences.transferToTranscripts()");
-                ts.transferToTranscripts();
+                LOGGER.info("Starting TransferSequences.doFullTransfer()");
+                getTransferSequences().doFullTransfer();
             } else if ("transfer-sequences-located-sequence-feature".equals(operation)) {
-                TransferSequences ts = new TransferSequences(getObjectStoreWriter());
                 LOGGER.info("Starting TransferSequences.transferToLocatedSequenceFeatures()");
-                ts.transferToLocatedSequenceFeatures();
+                getTransferSequences().transferToLocatedSequenceFeatures();
             } else if ("transfer-sequences-transcripts".equals(operation)) {
-                TransferSequences ts = new TransferSequences(getObjectStoreWriter());
                 LOGGER.info("Starting TransferSequences.transferToTranscripts()");
-                ts.transferToTranscripts();
+                getTransferSequences().transferToTranscripts();
             } else if ("make-spanning-locations".equals(operation)) {
                 CalculateLocations cl = new CalculateLocations(getObjectStoreWriter());
                 LOGGER.info("Starting CalculateLocations.createSpanningLocations()");
@@ -299,6 +300,14 @@ public class PostProcessOperationsTask extends DynamicAttributeTask
             } catch (Exception e) {
                 throw new BuildException(e);
             }
+        }
+    }
+
+    protected TransferSequences getTransferSequences() throws Exception {
+        if (getParallel()) {
+            return new TransferSequences(new ObjectStoreWriterFactory(objectStoreWriter));
+        } else {
+            return new TransferSequences(getObjectStoreWriter());
         }
     }
 }
